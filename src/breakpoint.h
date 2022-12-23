@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+
 typedef struct {
     pid_t pid;
     intptr_t addr;
@@ -15,6 +16,6 @@ typedef struct {
 
 void enable_breakpoint(breakpoint_t *bp);
 void disable_breakpoint(breakpoint_t *bp);
-
+breakpoint_t *new_breakpoint(pid_t pid, char *addr);
 
 #endif

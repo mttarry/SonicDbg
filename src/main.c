@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
         execve(path, newargv, newenviron);
     }
     else {
-        dbg_ctx ctx = { path, child_pid, {} };
+        dbg_ctx ctx = { path, child_pid, 0, {} };
         int status;
         int options = 0;
         waitpid(child_pid, &status, options);  

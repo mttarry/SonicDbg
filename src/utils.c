@@ -18,20 +18,20 @@ void trim_ends(char **s) {
     }
     *s = beg;
 }
-#include <stdio.h>
+
 char** split(char *s) {
     // four arguments max, 32 characters each
-    char **split = malloc(MAX_ARGS * sizeof(char*));
+    char **split = calloc(MAX_ARGS, sizeof(char*));
     int str_idx = 0;
     int char_idx = 0;
 
-    split[0] = malloc(ARG_LEN * sizeof(char));
+    split[0] = calloc(ARG_LEN, sizeof(char));
 
     for (size_t i = 0; i < strlen(s); ) {
         if (isspace(s[i])) {
             // consume whitespace between arguments
             while (isspace(s[i])) ++i;
-            split[++str_idx] = malloc(ARG_LEN * sizeof(char));
+            split[++str_idx] = calloc(ARG_LEN, sizeof(char));
             char_idx = 0;
         }
         else {
