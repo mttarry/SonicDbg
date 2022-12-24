@@ -1,11 +1,13 @@
 #include <sys/ptrace.h>
 #include <sys/wait.h>
+#include <sys/user.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "debugger.h"
 #include "commands.h"
+#include "registers.h"
 #include "utils.h"
 
 static void free_args(char **args)
@@ -45,6 +47,11 @@ void handle_command(dbg_ctx *ctx, char *command)
             list_breakpoints(ctx);
         else 
             set_bp_at_addr(ctx, addr);
+    }
+    else if (is_prefix(cmd, "register")) {
+        char *reg_name = args[1];
+        uint64_t val = get_register_value(ctx->pid, get_register_from_name(reg_name));
+        printf("%lu\n", val);
     }
     else {
         printf("Unknown command!\n");
