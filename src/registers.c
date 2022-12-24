@@ -40,8 +40,15 @@ uint64_t get_register_value(pid_t pid, enum aarch64_regnum regnum)
         perror("Error: ");
         exit(EXIT_FAILURE);
     }
-    
+
     return ((uint64_t *)iovec.iov_base)[regnum];
+}
+
+void dump_registers(pid_t pid) {
+    for (int i = AARCH64_X0_REGNUM; i < AARCH64_V0_REGNUM; ++i) {
+        uint64_t val = get_register_value(pid, i);
+        printf("%s = %lu\n", get_register_name(i), val);
+    }
 }
 
 void set_register_value(pid_t pid, enum aarch64_regnum regnum, uint64_t val) {
@@ -69,9 +76,9 @@ const char *get_register_name(enum aarch64_regnum regnum)
     return aarch64_r_register_names[regnum];
 }
 
-enum aarch64_regnum get_register_from_name(char *name)
+enum aarch64_regnum get_register_from_name(const char *name)
 {
-    for (int i = 0; i < 34; ++i)
+    for (int i = 0; i < NUM_GP_REG; ++i)
     {
         if (strcmp(name, aarch64_r_register_names[i]) == 0)
             return i;

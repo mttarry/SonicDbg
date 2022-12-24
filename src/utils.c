@@ -43,7 +43,7 @@ char** split(char *s) {
     return split;
 }
 
-int is_prefix(char *prefix, char *str) {
+int is_prefix(const char *prefix, const char *str) {
     if (strlen(prefix) > strlen(str)) 
         return 0;
 

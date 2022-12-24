@@ -10,6 +10,7 @@ typedef unsigned long elf_greg_t;
 typedef elf_greg_t elf_gregset_t[(sizeof (struct user_pt_regs) / sizeof(elf_greg_t))];
 #endif
 
+#define NUM_GP_REG  34
 
 enum aarch64_regnum
 {
@@ -41,9 +42,10 @@ enum aarch64_regnum
 
 uint64_t get_register_value(pid_t pid, enum aarch64_regnum regnum);
 void set_register_value(pid_t pid, enum aarch64_regnum regnum, uint64_t val);
+void dump_registers(pid_t pid);
 
 const char *get_register_name(enum aarch64_regnum regnum);
-enum aarch64_regnum get_register_from_name(char *name);
+enum aarch64_regnum get_register_from_name(const char *name);
 
 
 #endif
