@@ -18,7 +18,7 @@ static void free_args(char **args)
     free(args);
 }
 
-void continue_execution(dbg_ctx *ctx) {
+static void continue_execution(dbg_ctx *ctx) {
     printf("Continuing...\n");
     ptrace(PTRACE_CONT, ctx->pid, NULL, NULL);
     int wait_status;
@@ -26,7 +26,7 @@ void continue_execution(dbg_ctx *ctx) {
     waitpid(ctx->pid, &wait_status, options);
 }
 
-void handle_breakpoint_command(dbg_ctx *ctx, char *addr) {
+static void handle_breakpoint_command(dbg_ctx *ctx, const char *addr) {
     // If no address is specified, list currently active breakpoints
     if (!addr)
         list_breakpoints(ctx);
@@ -35,13 +35,19 @@ void handle_breakpoint_command(dbg_ctx *ctx, char *addr) {
 }
 
 
-void handle_register_command(dbg_ctx *ctx, const char *action, const char *reg_name, const char *val) {
+static void handle_register_command(const dbg_ctx *ctx, const char *action, const char *reg_name, const char *val) {    
     if (action == NULL) {
+        printf("Please specify an action (read/write/dump)\n");
+        return;
+    }
+
+    if (is_prefix(action, "dump")) {
         dump_registers(ctx->pid);
         return;
     }
-    else if (reg_name == NULL) {
-        printf("Please specify a register name\n");
+
+    if (reg_name == NULL) {
+        printf("Register name needed for read/write operation\n");
         return;
     }
 
@@ -51,10 +57,14 @@ void handle_register_command(dbg_ctx *ctx, const char *action, const char *reg_n
         return;
     }
     if (is_prefix(action, "read")) {
-        uint64_t val = get_register_value(ctx->pid, regnum);
-        printf("%lu\n", val);
+        uint64_t reg_val = get_register_value(ctx->pid, regnum);
+        printf("%lu\n", reg_val);
     }
     else if (is_prefix(action, "write")) {
+        if (val == NULL) {
+            printf("Register value needed for write operation\n");
+            return;
+        }
         set_register_value(ctx->pid, regnum, strtoul(val, NULL, 10));
         printf("%s = %s\n", reg_name, val);
     }

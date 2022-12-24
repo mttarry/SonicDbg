@@ -40,11 +40,11 @@ enum aarch64_regnum
 
 
 
-uint64_t get_register_value(pid_t pid, enum aarch64_regnum regnum);
-void set_register_value(pid_t pid, enum aarch64_regnum regnum, uint64_t val);
-void dump_registers(pid_t pid);
+uint64_t get_register_value(const pid_t pid, const enum aarch64_regnum regnum);
+void set_register_value(const pid_t pid, const enum aarch64_regnum regnum, const uint64_t val);
+void dump_registers(const pid_t pid);
 
-const char *get_register_name(enum aarch64_regnum regnum);
+const char *get_register_name(const enum aarch64_regnum regnum);
 enum aarch64_regnum get_register_from_name(const char *name);
 
 

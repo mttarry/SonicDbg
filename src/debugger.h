@@ -15,7 +15,10 @@ typedef struct {
 } dbg_ctx;
 
 
-void list_breakpoints(dbg_ctx *ctx);
-void set_bp_at_addr(dbg_ctx *ctx, char *addr);
+void list_breakpoints(const dbg_ctx *ctx);
+void set_bp_at_addr(dbg_ctx *ctx, const char *addr);
+
+int64_t read_memory(const pid_t pid, const uint64_t address);
+void write_memory(const pid_t pid, const uint64_t address, const int64_t val);
 
 #endif

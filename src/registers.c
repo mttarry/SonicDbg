@@ -28,7 +28,7 @@ static const char *const aarch64_r_register_names[] =
 };
 
 
-uint64_t get_register_value(pid_t pid, enum aarch64_regnum regnum)
+uint64_t get_register_value(const pid_t pid, const enum aarch64_regnum regnum)
 {
     struct iovec iovec;
     elf_gregset_t regs;
@@ -44,14 +44,14 @@ uint64_t get_register_value(pid_t pid, enum aarch64_regnum regnum)
     return ((uint64_t *)iovec.iov_base)[regnum];
 }
 
-void dump_registers(pid_t pid) {
+void dump_registers(const pid_t pid) {
     for (int i = AARCH64_X0_REGNUM; i < AARCH64_V0_REGNUM; ++i) {
         uint64_t val = get_register_value(pid, i);
         printf("%s = %lu\n", get_register_name(i), val);
     }
 }
 
-void set_register_value(pid_t pid, enum aarch64_regnum regnum, uint64_t val) {
+void set_register_value(const pid_t pid, const enum aarch64_regnum regnum, const uint64_t val) {
     struct iovec iovec;
     elf_gregset_t regs;
 
@@ -71,7 +71,7 @@ void set_register_value(pid_t pid, enum aarch64_regnum regnum, uint64_t val) {
     }
 }
 
-const char *get_register_name(enum aarch64_regnum regnum)
+const char *get_register_name(const enum aarch64_regnum regnum)
 {
     return aarch64_r_register_names[regnum];
 }

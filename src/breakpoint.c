@@ -23,7 +23,7 @@ void disable_breakpoint(breakpoint_t *bp) {
     bp->enabled = false;
 }
 
-breakpoint_t *new_breakpoint(pid_t pid, char *addr) {
+breakpoint_t *new_breakpoint(const pid_t pid, const char *addr) {
     breakpoint_t *new_bp = malloc(sizeof(breakpoint_t));
 
     new_bp->pid = pid;
