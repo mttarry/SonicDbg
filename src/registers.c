@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "registers.h"
 
@@ -35,8 +36,32 @@ uint64_t get_register_value(pid_t pid, enum aarch64_regnum regnum)
     iovec.iov_base = &regs;
     iovec.iov_len = sizeof(regs);
 
-    ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iovec);
+    if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iovec) < 0) {
+        perror("Error: ");
+        exit(EXIT_FAILURE);
+    }
+    
     return ((uint64_t *)iovec.iov_base)[regnum];
+}
+
+void set_register_value(pid_t pid, enum aarch64_regnum regnum, uint64_t val) {
+    struct iovec iovec;
+    elf_gregset_t regs;
+
+    iovec.iov_base = &regs;
+    iovec.iov_len = sizeof(regs);
+
+    if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iovec) < 0) {
+        perror("Error: ");
+        exit(EXIT_FAILURE);
+    }
+
+    ((uint64_t *)iovec.iov_base)[regnum] = val;
+
+    if (ptrace(PTRACE_SETREGSET, pid, NT_PRSTATUS, &iovec)) {
+        perror("Error: ");
+        exit(EXIT_FAILURE);
+    }
 }
 
 const char *get_register_name(enum aarch64_regnum regnum)

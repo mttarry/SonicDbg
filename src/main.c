@@ -16,6 +16,7 @@ int main(int argc, char **argv) {
         printf("Please specify an executable file as input\n");
         exit(EXIT_FAILURE);
     }
+    
     const char *path = argv[1];
     char *newargv[] = { NULL };
     char *newenviron[] = { NULL };

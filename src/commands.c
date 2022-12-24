@@ -49,9 +49,18 @@ void handle_command(dbg_ctx *ctx, char *command)
             set_bp_at_addr(ctx, addr);
     }
     else if (is_prefix(cmd, "register")) {
-        char *reg_name = args[1];
-        uint64_t val = get_register_value(ctx->pid, get_register_from_name(reg_name));
-        printf("%lu\n", val);
+        char *action = args[1];
+        char *reg_name = args[2];
+
+        if (is_prefix(action, "read")) {
+            uint64_t val = get_register_value(ctx->pid, get_register_from_name(reg_name));
+            printf("%lu\n", val);
+        }
+        else if (is_prefix(action, "write")) {
+            char *val = args[3];
+            set_register_value(ctx->pid, get_register_from_name(reg_name), strtoul(val, NULL, 10));
+            printf("%s = %s\n", reg_name, val);
+        }
     }
     else {
         printf("Unknown command!\n");
