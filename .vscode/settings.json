@@ -4,6 +4,7 @@
         "string.h": "c",
         "registers.h": "c",
         "user.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "ptrace.h": "c"
     }
 }

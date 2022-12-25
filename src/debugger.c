@@ -1,9 +1,11 @@
 #include <sys/ptrace.h>
+#include <sys/wait.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "debugger.h"
+#include "registers.h"
 
 
 void list_breakpoints(const dbg_ctx *ctx) {
@@ -25,8 +27,8 @@ void set_bp_at_addr(dbg_ctx *ctx, const char *addr) {
     }
 }
 
-int64_t read_memory(const pid_t pid, const uint64_t address) {
-    int64_t val;
+long read_memory(const pid_t pid, const uint64_t address) {
+    long val;
     if ((val = ptrace(PTRACE_PEEKDATA, pid, address, NULL)) < 0) {
         perror("Error: ");
         exit(EXIT_FAILURE);
@@ -35,9 +37,49 @@ int64_t read_memory(const pid_t pid, const uint64_t address) {
     return val;
 }
 
-void write_memory(const pid_t pid, const uint64_t address, const int64_t val) {
+void write_memory(const pid_t pid, const uint64_t address, const uint64_t val) {
     if (ptrace(PTRACE_POKEDATA, pid, address, val) < 0) {
         perror("Error: ");
         exit(EXIT_FAILURE);
+    }
+}
+
+uint64_t get_pc(const pid_t pid) {
+    return get_register_value(pid, AARCH64_PC_REGNUM);
+}
+
+void set_pc(const pid_t pid, const uint64_t val) {
+    set_register_value(pid, AARCH64_PC_REGNUM, val);
+}
+
+breakpoint_t *get_bp_at_address(dbg_ctx *ctx, uint64_t addr) {
+    for (int i = 0; i < ctx->active_breakpoints; ++i) {
+        if (ctx->breakpoints[i]->addr == (intptr_t)addr)
+            return ctx->breakpoints[i];
+    }
+
+    return NULL;
+}
+
+void wait_for_signal(const pid_t pid) {
+    int wait_status;
+    int options = 0;
+    waitpid(pid, &wait_status, options);
+}
+
+void step_over_breakpoint(dbg_ctx *ctx) {
+    uint64_t possible_bp_loc = get_pc(ctx->pid);
+
+    breakpoint_t *bp = get_bp_at_address(ctx, possible_bp_loc);
+    if (bp && bp->enabled) {
+        disable_breakpoint(bp);
+
+        if (ptrace(PTRACE_SINGLESTEP, ctx->pid, NULL, NULL) < 0) {
+            perror("Error: ");
+            exit(EXIT_FAILURE);
+        }
+
+        wait_for_signal(ctx->pid);
+        enable_breakpoint(bp);
     }
 }

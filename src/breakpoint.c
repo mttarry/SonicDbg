@@ -2,23 +2,21 @@
 #include <stdlib.h>
 
 #include "breakpoint.h"
-
+#include <stdio.h>
 void enable_breakpoint(breakpoint_t *bp) {
-    uint64_t data = ptrace(PTRACE_PEEKDATA, bp->pid, bp->addr, NULL);
-    bp->saved_data = (uint8_t)(data & 0xFF);
+    bp->saved_data = ptrace(PTRACE_PEEKDATA, bp->pid, bp->addr, NULL);
+    
+    uint64_t trap = 0xD4200000;
+    ptrace(PTRACE_POKEDATA, bp->pid, bp->addr, trap);
 
-    uint64_t int3 = 0xCC;
-    uint64_t data_with_int3 = ((bp->saved_data & ~(0xFF)) | int3);
-    ptrace(PTRACE_POKEDATA, bp->pid, bp->addr, data_with_int3);
+    printf("Enable BP: Replacing instruction %lu with %lu\n", bp->saved_data, trap);
 
     bp->enabled = true;
 }
 
 void disable_breakpoint(breakpoint_t *bp) {
-    uint64_t data = ptrace(PTRACE_PEEKDATA, bp->pid, bp->addr, NULL);
-    uint64_t restored_data = ((data & ~(0xFF)) | bp->saved_data);
-
-    ptrace(PTRACE_POKEDATA, bp->pid, bp->addr, restored_data);
+    ptrace(PTRACE_POKEDATA, bp->pid, bp->addr, bp->saved_data);
+    printf("Disable BP: Replacing trap with %lu\n", bp->saved_data);
 
     bp->enabled = false;
 }

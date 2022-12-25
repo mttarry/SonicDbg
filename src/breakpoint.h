@@ -10,7 +10,7 @@ typedef struct {
     pid_t pid;
     intptr_t addr;
     bool enabled;
-    uint8_t saved_data;
+    uint64_t saved_data;
 } breakpoint_t;
 
 
