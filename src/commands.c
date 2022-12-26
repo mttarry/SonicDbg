@@ -28,6 +28,11 @@ static void continue_execution(dbg_ctx *ctx)
         exit(EXIT_FAILURE);
     }
     wait_for_signal(ctx->pid);
+
+    breakpoint_t *bp = check_breakpoint_hit(ctx);
+    if (bp) {
+        printf("Hit: Breakpoint %d at 0x%lx\n", bp->num, bp->addr);
+    }
 }
 
 static void handle_breakpoint_command(dbg_ctx *ctx, const char *addr)
@@ -71,7 +76,7 @@ static void handle_register_command(const pid_t pid,
     if (is_prefix(action, "read"))
     {
         uint64_t reg_val = get_register_value(pid, regnum);
-        printf("%lu\n", reg_val);
+        printf("$%d = %lu\n", regnum, reg_val);
     }
     else if (is_prefix(action, "write"))
     {
@@ -80,8 +85,8 @@ static void handle_register_command(const pid_t pid,
             printf("Register value needed for write operation\n");
             return;
         }
-        set_register_value(pid, regnum, strtoul(val, NULL, 10));
-        printf("%s = %s\n", reg_name, val);
+        set_register_value(pid, regnum, convert_val_radix(val));
+        printf("$%d = %s\n", regnum, val);
     }
 }
 
@@ -110,7 +115,7 @@ void handle_memory_command(const pid_t pid,
             printf("Value needed for write operation\n");
             return;
         }
-        uint64_t write_val = strtoul(val, NULL, 10);
+        uint64_t write_val = convert_val_radix(val);
         write_memory(pid, addr, write_val);
         printf("*%s = %s\n", address, val);
     }

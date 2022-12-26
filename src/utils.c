@@ -1,6 +1,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "utils.h"
 
@@ -52,4 +53,20 @@ int is_prefix(const char *prefix, const char *str) {
             return 0;
     
     return 1;
+}
+
+uint64_t convert_val_radix(const char *val) {
+    if (!val) 
+        return 0;
+
+    if (val[0] == '0' && val[1] == 'x') 
+        return strtoul(val, NULL, 16);
+        
+    for (size_t i = 0; i < strlen(val); ++i) {
+        if (isxdigit(val[i])) {
+            return strtoul(val, NULL, 16);
+        }
+    }
+
+    return strtoul(val, NULL, 10);
 }

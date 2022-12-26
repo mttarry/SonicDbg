@@ -11,11 +11,12 @@ typedef struct {
     intptr_t addr;
     bool enabled;
     uint64_t saved_data;
+    int num;
 } breakpoint_t;
 
 
 void enable_breakpoint(breakpoint_t *bp);
 void disable_breakpoint(breakpoint_t *bp);
-breakpoint_t *new_breakpoint(const pid_t pid, const char *addr);
+breakpoint_t *new_breakpoint(pid_t pid, int active_breakpoints, const char *addr);
 
 #endif

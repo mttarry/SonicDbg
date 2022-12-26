@@ -29,13 +29,14 @@ void disable_breakpoint(breakpoint_t *bp) {
     bp->enabled = false;
 }
 
-breakpoint_t *new_breakpoint(const pid_t pid, const char *addr) {
+breakpoint_t *new_breakpoint(pid_t pid, int active_breakpoints, const char *addr) {
     breakpoint_t *new_bp = malloc(sizeof(breakpoint_t));
 
     new_bp->pid = pid;
     new_bp->addr = strtol(addr, NULL, 16);
     new_bp->enabled = false;
     new_bp->saved_data = 0;
+    new_bp->num = active_breakpoints;
 
     return new_bp;
 }

@@ -9,7 +9,7 @@
 
 typedef struct {
     const char *program_name;
-    const pid_t pid;
+   pid_t pid;
     int active_breakpoints;
     breakpoint_t *breakpoints[MAX_BREAKPOINTS];
 } dbg_ctx;
@@ -25,6 +25,7 @@ uint64_t get_pc(const pid_t pid);
 void set_pc(const pid_t pid, const uint64_t val);
 
 void step_over_breakpoint(dbg_ctx *ctx);
+breakpoint_t *check_breakpoint_hit(dbg_ctx *ctx);
 
 void wait_for_signal(const pid_t pid);
 
