@@ -5,6 +5,8 @@
         "registers.h": "c",
         "user.h": "c",
         "stdio.h": "c",
-        "ptrace.h": "c"
+        "ptrace.h": "c",
+        "libdwarf.h": "c",
+        "dwarf.h": "c"
     }
 }

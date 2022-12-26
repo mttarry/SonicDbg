@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
     const char *path = argv[1];
     char *newargv[] = { NULL };
     char *newenviron[] = { NULL };
-
+    
     pid_t child_pid = fork();
     
     if (child_pid == 0) {
@@ -29,10 +29,11 @@ int main(int argc, char **argv) {
         execve(path, newargv, newenviron);
     }
     else {
-        dbg_ctx ctx = { path, child_pid, 0, {} };
-        int status;
-        int options = 0;
-        waitpid(child_pid, &status, options);  
+        dbg_ctx ctx = { path, child_pid, 0, {}, NULL };
+
+        dwarf_init(&ctx);
+
+        wait_for_signal(ctx.pid);
         
         size_t buf_size = 512;
         char *buf = malloc(buf_size * sizeof(char));

@@ -1,17 +1,20 @@
-CC 		:= gcc
-CFLAGS 	:= -std=gnu99 -Wall -Wextra
-LD 		:= gcc
-LDFLAGS := -o main -g -lgcc
-DEBUG	:= -DDEBUG
+CC 			:= gcc
+CFLAGS 		:= -std=gnu99 -Wall -Wextra
+LD 			:= gcc
+LDFLAGS 	:= -o main -g -lgcc
+DEBUG		:= -DDEBUG
 
-SRC=src
+LIBDWARF 	:= $(shell pkg-config --libs --cflags libdwarf)
+LDFLAGS 	+= $(LIBDWARF)
+
+SRC 		:= src
 SRC_DIRS	:= $(SRC)
 
 C_FILES 	:= $(wildcard $(addsuffix /*.c,$(SRC_DIRS)))
 
 INCLUDES	:= $(addprefix -I/,$(SRC_DIRS))
 
-ODIR=obj
+ODIR		:= obj
 C_OBJS 		:= $(addprefix $(ODIR)/, $(C_FILES:%.c=%.o))
 
 BIN 		:= main
@@ -23,7 +26,7 @@ $(ODIR):
 	mkdir -p $(addprefix $(ODIR)/, $(SRC))
 
 $(BIN): $(C_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(DEBUG)
+	$(CC) -o $@ $^ $(DEBUG) $(LDFLAGS) 
 
 $(ODIR)/%.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $^ $(INCLUDES) 

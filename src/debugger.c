@@ -9,6 +9,32 @@
 #include "registers.h"
 
 
+void dwarf_init(dbg_ctx *ctx) {
+    int res;
+    char trueoutpath[100];
+    Dwarf_Error dw_error;
+
+    res = dwarf_init_path(ctx->program_name, 
+        trueoutpath, 
+        sizeof(trueoutpath), 
+        DW_GROUPNUMBER_ANY, 
+        NULL, NULL,
+        &ctx->dwarf, 
+        &dw_error);
+    
+    if (res == DW_DLV_ERROR) {
+        printf("Error from libdwarf opening \"%s\":  %s\n",
+            ctx->program_name,
+            dwarf_errmsg(dw_error));
+        return;
+    }
+    if (res == DW_DLV_NO_ENTRY) {
+        printf("There is no such file as \"%s\"\n",
+            ctx->program_name);
+        return;
+    }
+}
+
 breakpoint_t *check_breakpoint_hit(dbg_ctx *ctx) {
     uint64_t pc = get_pc(ctx->pid);
     for (int i = 0; i < ctx->active_breakpoints; ++i) {
