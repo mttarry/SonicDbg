@@ -8,6 +8,7 @@
 
 #include "debugger.h"
 #include "commands.h"
+#include "dbg_dwarf.h"
 
 
 
@@ -30,8 +31,8 @@ int main(int argc, char **argv) {
     }
     else {
         dbg_ctx ctx = { path, child_pid, 0, {}, NULL };
-
-        dwarf_init(&ctx);
+    
+        dwarf_init(&ctx.dwarf, ctx.program_name);
 
         wait_for_signal(ctx.pid);
         
@@ -45,7 +46,8 @@ int main(int argc, char **argv) {
 
             handle_command(&ctx, buf);
         }
-        
+
+        dwarf_finish(ctx.dwarf);
         free(buf);
     }
 }

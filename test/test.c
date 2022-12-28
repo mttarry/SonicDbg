@@ -1,8 +1,13 @@
 #include <stdio.h>
 #include <signal.h>
+
 const char *password = "password";
 
+void print(const char *str) {
+    printf("%s\n", str);
+}
+
 int main(void) {
-    printf("%s\n", password);
-    printf("World\n");
+    print(password);
+    print("Hello World!\n");
 }

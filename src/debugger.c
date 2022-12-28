@@ -1,39 +1,17 @@
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 
+#include <libdwarf-0/libdwarf.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <string.h>
 
 #include "debugger.h"
 #include "registers.h"
 
 
-void dwarf_init(dbg_ctx *ctx) {
-    int res;
-    char trueoutpath[100];
-    Dwarf_Error dw_error;
-
-    res = dwarf_init_path(ctx->program_name, 
-        trueoutpath, 
-        sizeof(trueoutpath), 
-        DW_GROUPNUMBER_ANY, 
-        NULL, NULL,
-        &ctx->dwarf, 
-        &dw_error);
-    
-    if (res == DW_DLV_ERROR) {
-        printf("Error from libdwarf opening \"%s\":  %s\n",
-            ctx->program_name,
-            dwarf_errmsg(dw_error));
-        return;
-    }
-    if (res == DW_DLV_NO_ENTRY) {
-        printf("There is no such file as \"%s\"\n",
-            ctx->program_name);
-        return;
-    }
-}
 
 breakpoint_t *check_breakpoint_hit(dbg_ctx *ctx) {
     uint64_t pc = get_pc(ctx->pid);
@@ -64,6 +42,7 @@ void set_bp_at_addr(dbg_ctx *ctx, const char *addr) {
         printf("Error: too many breakpoints active\n");
     }
 }
+
 
 long read_memory(const pid_t pid, const uint64_t address) {
     long val;
@@ -122,4 +101,11 @@ void step_over_breakpoint(dbg_ctx *ctx) {
         wait_for_signal(ctx->pid);
         enable_breakpoint(bp);
     }
+}
+
+void set_bp_at_func(dbg_ctx *ctx, const char *symbol) {
+    char addr_str[256];
+    Dwarf_Addr addr = get_func_addr(ctx->dwarf, symbol);
+    sprintf(addr_str, "%lld", addr);
+    set_bp_at_addr(ctx, addr_str);
 }

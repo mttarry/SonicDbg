@@ -3,7 +3,7 @@
 
 
 
-void handle_command(dbg_ctx *ctx, char *command);
+void handle_command(dbg_ctx *ctx, char *loc);
 
 
 #endif

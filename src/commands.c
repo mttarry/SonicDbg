@@ -9,6 +9,7 @@
 #include "commands.h"
 #include "registers.h"
 #include "utils.h"
+#include "dbg_dwarf.h"
 
 static void free_args(char **args)
 {
@@ -35,13 +36,27 @@ static void continue_execution(dbg_ctx *ctx)
     }
 }
 
-static void handle_breakpoint_command(dbg_ctx *ctx, const char *addr)
+static bool is_symbol(const char *loc) {
+    if (loc[0] != '*') 
+        return true;
+    return false;
+}
+
+
+static void handle_breakpoint_command(dbg_ctx *ctx, const char *loc)
 {
     // If no address is specified, list currently active breakpoints
-    if (!addr)
+    if (!loc) {
         list_breakpoints(ctx);
-    else
-        set_bp_at_addr(ctx, addr);
+        return;
+    }
+    
+    // breakpoint can be specified by function symbol or address (prefixed with *)
+    if (is_symbol(loc))
+        set_bp_at_func(ctx, loc);
+    else {
+        set_bp_at_addr(ctx, loc + 1);
+    }
 }
 
 static void handle_register_command(const pid_t pid,
