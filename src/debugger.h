@@ -22,7 +22,7 @@ typedef struct {
 Dwarf_Addr get_func_addr(Dwarf_Debug dbg, const char *symbol);
 
 void list_breakpoints(const dbg_ctx *ctx);
-void set_bp_at_addr(dbg_ctx *ctx, const char *addr);
+void set_bp_at_addr(dbg_ctx *ctx, uint64_t addr);
 void set_bp_at_func(dbg_ctx *ctx, const char *symbol);
 
 long read_memory(const pid_t pid, const uint64_t address);

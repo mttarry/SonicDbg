@@ -17,6 +17,6 @@ typedef struct {
 
 void enable_breakpoint(breakpoint_t *bp);
 void disable_breakpoint(breakpoint_t *bp);
-breakpoint_t *new_breakpoint(pid_t pid, int active_breakpoints, const char *addr);
+breakpoint_t *new_breakpoint(pid_t pid, int active_breakpoints, uint64_t addr);
 
 #endif

@@ -50,12 +50,12 @@ static void handle_breakpoint_command(dbg_ctx *ctx, const char *loc)
         list_breakpoints(ctx);
         return;
     }
-    
+
     // breakpoint can be specified by function symbol or address (prefixed with *)
     if (is_symbol(loc))
         set_bp_at_func(ctx, loc);
     else {
-        set_bp_at_addr(ctx, loc + 1);
+        set_bp_at_addr(ctx, convert_val_radix(loc + 1));
     }
 }
 

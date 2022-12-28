@@ -30,17 +30,22 @@ void list_breakpoints(const dbg_ctx *ctx) {
     }
 }
 
-void set_bp_at_addr(dbg_ctx *ctx, const char *addr) {
+void set_bp_at_addr(dbg_ctx *ctx, uint64_t addr) {
     if (ctx->active_breakpoints < MAX_BREAKPOINTS) {
         // Set breakpoint if limit has not been exceeded
         breakpoint_t *new_bp = new_breakpoint(ctx->pid, ctx->active_breakpoints + 1, addr);
         enable_breakpoint(new_bp);
         ctx->breakpoints[ctx->active_breakpoints++] = new_bp;
-        printf("Breakpoint %d at %s\n", ctx->active_breakpoints, addr);
+        printf("Breakpoint %d at 0x%lx\n", ctx->active_breakpoints, addr);
     }
     else {
         printf("Error: too many breakpoints active\n");
     }
+}
+
+void set_bp_at_func(dbg_ctx *ctx, const char *symbol) {
+    Dwarf_Addr addr = get_func_addr(ctx->dwarf, symbol);
+    set_bp_at_addr(ctx, addr);
 }
 
 
@@ -80,6 +85,7 @@ breakpoint_t *get_bp_at_address(dbg_ctx *ctx, uint64_t addr) {
     return NULL;
 }
 
+
 void wait_for_signal(const pid_t pid) {
     int wait_status;
     int options = 0;
@@ -103,9 +109,4 @@ void step_over_breakpoint(dbg_ctx *ctx) {
     }
 }
 
-void set_bp_at_func(dbg_ctx *ctx, const char *symbol) {
-    char addr_str[256];
-    Dwarf_Addr addr = get_func_addr(ctx->dwarf, symbol);
-    sprintf(addr_str, "%lld", addr);
-    set_bp_at_addr(ctx, addr_str);
-}
+
