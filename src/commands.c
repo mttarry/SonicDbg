@@ -32,7 +32,8 @@ static void continue_execution(dbg_ctx *ctx)
 
     breakpoint_t *bp = check_breakpoint_hit(ctx);
     if (bp) {
-        printf("Hit: Breakpoint %d at 0x%lx\n", bp->num, bp->addr);
+        char *func = get_func_symbol_from_pc(ctx->dwarf, get_pc(ctx->pid));
+        printf("Hit: Breakpoint %d at 0x%lx in %s\n", bp->num, bp->addr, func);
     }
 }
 

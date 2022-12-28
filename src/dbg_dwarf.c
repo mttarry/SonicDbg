@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "dbg_dwarf.h"
 
@@ -57,38 +58,22 @@ static bool pc_in_die(Dwarf_Die die, Dwarf_Addr pc) {
     return false;
 }
 
-static Dwarf_Addr get_subprog_addr(Dwarf_Debug dbg, Dwarf_Die subprogram, const char *symbol) {
+static bool cmp_die_subprog_name(Dwarf_Die subprogram, const char *symbol) {
     char *subprogram_name;
-    Dwarf_Attribute *attrs;
-    Dwarf_Addr brkpoint_addr;
-    Dwarf_Signed attr_count, it;
 
     if (dwarf_diename(subprogram, &subprogram_name, NULL) == DW_DLV_OK) {
         if (strncmp(subprogram_name, symbol, strlen(subprogram_name)) == 0) {
-            if (dwarf_attrlist(subprogram, &attrs, &attr_count, NULL) != DW_DLV_OK) {
-                printf("Error in dwarf_attrlist\n");
-                exit(EXIT_FAILURE);
-            }
-            for (it = 0; it < attr_count; ++it) {
-                Dwarf_Half attr_code;
-                if (dwarf_whatattr(attrs[it], &attr_code, NULL) != DW_DLV_OK) {
-                    printf("Error in dwarf_whatattr\n");
-                    exit(EXIT_FAILURE);
-                }
-                if (attr_code == DW_AT_low_pc) {
-                    dwarf_formaddr(attrs[it], &brkpoint_addr, NULL);
-                    return brkpoint_addr;
-                }
-            }
+           return true;
         }
     }
 
-    return 0;
+    return false;
 }
 
-
-static Dwarf_Addr get_subprog_die(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Bool is_info, const char *symbol) {
-    Dwarf_Addr brkpoint_addr = 0;
+// If symbol is NULL, get subprogram die based on PC
+// Else, get subprogram die based on symbol
+static Dwarf_Die find_subprog_die(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Bool is_info, const char *symbol, uint64_t pc) {
+    static Dwarf_Die ret_die = NULL;
     Dwarf_Die child_die, sibling_die;
     Dwarf_Half tag;
     int ret;
@@ -98,11 +83,15 @@ static Dwarf_Addr get_subprog_die(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Bool is_
         exit(1);
     }
     if (tag == DW_TAG_subprogram) {
-        brkpoint_addr = get_subprog_addr(dbg, die, symbol);
-        if (brkpoint_addr != 0) {
-            return brkpoint_addr;
+        if (symbol != NULL && cmp_die_subprog_name(die, symbol)) {
+            ret_die = die;
+            return ret_die;
         }
-    }
+        else if (pc_in_die(die, pc)) {
+            ret_die = die;
+            return ret_die;
+        }
+    } 
 
     ret = dwarf_child(die, &child_die, NULL);
     if (ret == DW_DLV_ERROR) {
@@ -110,11 +99,8 @@ static Dwarf_Addr get_subprog_die(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Bool is_
         exit(1);
     }
     else if (ret == DW_DLV_OK) {
-        brkpoint_addr = get_subprog_die(dbg, child_die, is_info, symbol);
+        find_subprog_die(dbg, child_die, is_info, symbol, pc);
         dwarf_dealloc(dbg, child_die, DW_DLA_DIE);
-        if (brkpoint_addr != 0) {
-            return brkpoint_addr;
-        }
     }
 
     ret = dwarf_siblingof_b(dbg, die, is_info, &sibling_die, NULL);
@@ -123,18 +109,15 @@ static Dwarf_Addr get_subprog_die(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Bool is_
         exit(1);
     }
     else if (ret == DW_DLV_OK) {
-        brkpoint_addr = get_subprog_die(dbg, sibling_die, is_info, symbol);
+        find_subprog_die(dbg, sibling_die, is_info, symbol, pc);
         dwarf_dealloc(dbg, sibling_die, DW_DLA_DIE);
-        if (brkpoint_addr != 0) {
-            return brkpoint_addr;
-        }
     }
-
-    return 0;
+    
+    return ret_die;
 }
 
 
-Dwarf_Addr get_func_addr(Dwarf_Debug dbg, const char *symbol) {
+static Dwarf_Die get_subprog_die_cu(Dwarf_Debug dbg, const char *symbol, uint64_t pc) {
     int res;
     Dwarf_Bool is_info = 1;
     Dwarf_Unsigned cu_hdr_len = 0;
@@ -144,7 +127,7 @@ Dwarf_Addr get_func_addr(Dwarf_Debug dbg, const char *symbol) {
     Dwarf_Unsigned next_cu_header = 0;
     Dwarf_Error err = 0;
     
-    Dwarf_Addr func_addr;
+    Dwarf_Die subprog_die;
 
     while (1) {
         Dwarf_Die no_die = 0;
@@ -181,10 +164,55 @@ Dwarf_Addr get_func_addr(Dwarf_Debug dbg, const char *symbol) {
             exit(EXIT_FAILURE);
         }
 
-        func_addr = get_subprog_die(dbg, cu_die, is_info, symbol);
+        subprog_die = find_subprog_die(dbg, cu_die, is_info, symbol, pc);
         dwarf_dealloc(dbg, cu_die, DW_DLA_DIE);
     }
 
-    return func_addr;
+    return subprog_die;
 }
 
+
+char* get_func_symbol_from_pc(Dwarf_Debug dbg, uint64_t pc) {
+    Dwarf_Die subprog_die;
+    char *subprog_name;
+    
+    subprog_die = get_subprog_die_cu(dbg, NULL, pc);
+    if (dwarf_diename(subprog_die, &subprog_name, NULL) == DW_DLV_OK) {
+        return subprog_name;
+    }
+
+    return NULL;
+}
+
+Dwarf_Addr get_func_addr(Dwarf_Debug dbg, const char *symbol) {
+    Dwarf_Die subprog_die;
+    char *subprog_name;
+    Dwarf_Attribute *attrs;
+    Dwarf_Addr brkpoint_addr;
+    Dwarf_Signed attr_count, it;
+    Dwarf_Error err;
+
+    subprog_die = get_subprog_die_cu(dbg, symbol, 0);
+
+    if (dwarf_diename(subprog_die, &subprog_name, &err) == DW_DLV_OK) {
+        if (strncmp(subprog_name, symbol, strlen(subprog_name)) == 0) {
+            if (dwarf_attrlist(subprog_die, &attrs, &attr_count, NULL) != DW_DLV_OK) {
+                printf("Error in dwarf_attrlist\n");
+                exit(EXIT_FAILURE);
+            }
+            for (it = 0; it < attr_count; ++it) {
+                Dwarf_Half attr_code;
+                if (dwarf_whatattr(attrs[it], &attr_code, NULL) != DW_DLV_OK) {
+                    printf("Error in dwarf_whatattr\n");
+                    exit(EXIT_FAILURE);
+                }
+                if (attr_code == DW_AT_low_pc) {
+                    dwarf_formaddr(attrs[it], &brkpoint_addr, NULL);
+                    return brkpoint_addr;
+                }
+            }
+        }
+    }
+
+    return 0;
+}

@@ -10,6 +10,7 @@
 
 #include "debugger.h"
 #include "registers.h"
+#include "dbg_dwarf.h"
 
 
 
@@ -45,7 +46,12 @@ void set_bp_at_addr(dbg_ctx *ctx, uint64_t addr) {
 
 void set_bp_at_func(dbg_ctx *ctx, const char *symbol) {
     Dwarf_Addr addr = get_func_addr(ctx->dwarf, symbol);
-    set_bp_at_addr(ctx, addr);
+    if (addr != 0) {
+        set_bp_at_addr(ctx, addr);
+    }
+    else {
+        printf("Unable to set breakpoint at function %s\n", symbol);
+    }
 }
 
 
