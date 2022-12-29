@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <fcntl.h>
 
 #include "debugger.h"
 #include "commands.h"
@@ -13,6 +14,8 @@
 
 
 int main(int argc, char **argv) {
+    int fd;
+
     if (argc < 2) {
         printf("Please specify an executable file as input\n");
         exit(EXIT_FAILURE);
@@ -30,12 +33,22 @@ int main(int argc, char **argv) {
         execve(path, newargv, newenviron);
     }
     else {
-        dbg_ctx ctx = { path, child_pid, 0, {}, NULL };
-    
-        dwarf_init(&ctx.dwarf, ctx.program_name);
+        dbg_ctx ctx = {};
+        ctx.program_name = path;
+        ctx.pid = child_pid;
 
         wait_for_signal(ctx.pid);
-        
+
+        dwarf_init(&ctx.dwarf, ctx.program_name);
+
+        if ((fd = open(ctx.program_name, O_RDONLY, 0)) < 0) {
+            printf(" opening \"%s\" failed\n", argv[1]);
+            exit(EXIT_FAILURE);
+        }
+
+        init_elf(&ctx, fd);
+        init_load_addr(&ctx);
+
         size_t buf_size = 512;
         char *buf = malloc(buf_size * sizeof(char));
 
@@ -47,6 +60,7 @@ int main(int argc, char **argv) {
             handle_command(&ctx, buf);
         }
 
+        close_elf(&ctx, fd);
         dwarf_finish(ctx.dwarf);
         free(buf);
     }

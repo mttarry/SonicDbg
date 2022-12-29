@@ -5,7 +5,9 @@ LDFLAGS 	:= -o main -g -lgcc
 DEBUG		:= -DDEBUG
 
 LIBDWARF 	:= $(shell pkg-config --libs --cflags libdwarf)
+LIBELF 		:= $(shell pkg-config --libs --cflags libelf)
 LDFLAGS 	+= $(LIBDWARF)
+LDFLAGS		+= $(LIBELF)
 
 SRC 		:= src
 SRC_DIRS	:= $(SRC)

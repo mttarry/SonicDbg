@@ -60,9 +60,8 @@ static bool pc_in_die(Dwarf_Die die, Dwarf_Addr pc) {
 
 static bool cmp_die_subprog_name(Dwarf_Die subprogram, const char *symbol) {
     char *subprogram_name;
-
     if (dwarf_diename(subprogram, &subprogram_name, NULL) == DW_DLV_OK) {
-        if (strncmp(subprogram_name, symbol, strlen(subprogram_name)) == 0) {
+        if (strncmp(subprogram_name, symbol, strlen(symbol)) == 0) {
            return true;
         }
     }

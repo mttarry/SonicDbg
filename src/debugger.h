@@ -5,7 +5,7 @@
 
 #include <libdwarf-0/dwarf.h>
 #include <libdwarf-0/libdwarf.h>
-
+#include <libelf.h>
 
 #include "breakpoint.h"
 
@@ -17,7 +17,13 @@ typedef struct {
     int active_breakpoints;
     breakpoint_t *breakpoints[MAX_BREAKPOINTS];
     Dwarf_Debug dwarf;
+    Elf *elf;
+    intptr_t load_addr;
 } dbg_ctx;
+
+void init_elf(dbg_ctx *ctx, int fd);
+void close_elf(dbg_ctx *ctx, int fd);
+void init_load_addr(dbg_ctx *ctx);
 
 void list_breakpoints(const dbg_ctx *ctx);
 void set_bp_at_addr(dbg_ctx *ctx, uint64_t addr);
@@ -30,9 +36,10 @@ uint64_t get_pc(const pid_t pid);
 void set_pc(const pid_t pid, const uint64_t val);
 
 void step_over_breakpoint(dbg_ctx *ctx);
-breakpoint_t *check_breakpoint_hit(dbg_ctx *ctx);
+breakpoint_t *at_breakpoint(dbg_ctx *ctx);
 
 void wait_for_signal(const pid_t pid);
 
+void single_step(dbg_ctx *ctx);
 
 #endif

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include "debugger.h"
 #include "registers.h"
@@ -14,7 +15,7 @@
 
 
 
-breakpoint_t *check_breakpoint_hit(dbg_ctx *ctx) {
+breakpoint_t *at_breakpoint(dbg_ctx *ctx) {
     uint64_t pc = get_pc(ctx->pid);
     for (int i = 0; i < ctx->active_breakpoints; ++i) {
         if (ctx->breakpoints[i]->addr == (intptr_t)pc) {
@@ -115,4 +116,75 @@ void step_over_breakpoint(dbg_ctx *ctx) {
     }
 }
 
+void single_step(dbg_ctx *ctx) {
+    breakpoint_t *bp = at_breakpoint(ctx);
+    if (bp && bp->enabled) {
+        step_over_breakpoint(ctx);
+    }
 
+    if (ptrace(PTRACE_SINGLESTEP, ctx->pid, NULL, NULL) < 0) {
+        perror("Error: ");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void init_elf(dbg_ctx *ctx, int fd) {
+    if (elf_version(EV_CURRENT) == EV_NONE) {
+        printf("ELF library initialization failed: %s\n", elf_errmsg(elf_errno()));
+        exit(EXIT_FAILURE);
+    }
+    if ((ctx->elf = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
+        printf(" elf_begin () failed: %s\n", elf_errmsg(elf_errno()));
+        exit(EXIT_FAILURE);
+    }
+    if (elf_kind(ctx->elf) != ELF_K_ELF) {
+        printf("Error: file is not an ELF object\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void close_elf(dbg_ctx *ctx, int fd) {
+    elf_end(ctx->elf);
+    close(fd);
+}
+
+static bool bin_is_pie(dbg_ctx *ctx) {
+    Elf64_Ehdr *ehdr;
+
+    ehdr = elf64_getehdr(ctx->elf);
+    if (ehdr == NULL) {
+        printf("Error: elf64_getehdr failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    return ehdr->e_type == ET_DYN;
+}
+
+
+void init_load_addr(dbg_ctx *ctx) {
+    FILE *file;
+    char *linebuf, *filebuf;
+    size_t buf_size = 100;
+ 
+    if (bin_is_pie(ctx)) {
+        filebuf = malloc(buf_size * sizeof(char));
+
+        sprintf(filebuf, "/proc/%d/maps", ctx->pid);
+
+        if ((file = fopen(filebuf, "r")) == NULL) {
+            printf("Error opening %s\n", filebuf);
+            perror("Error");
+            exit(EXIT_FAILURE);
+        }
+
+        linebuf = malloc(buf_size * sizeof(char));
+        getline(&linebuf, &buf_size, file);
+
+        char *addr = strtok(linebuf, "-");
+
+        ctx->load_addr = strtol(addr, NULL, 16);
+
+        free(linebuf);
+        free(filebuf);
+    }
+}

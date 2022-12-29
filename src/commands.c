@@ -22,6 +22,7 @@ static void free_args(char **args)
 static void continue_execution(dbg_ctx *ctx)
 {
     printf("Continuing...\n");
+
     step_over_breakpoint(ctx);
     if (ptrace(PTRACE_CONT, ctx->pid, NULL, NULL) < 0)
     {
@@ -30,7 +31,7 @@ static void continue_execution(dbg_ctx *ctx)
     }
     wait_for_signal(ctx->pid);
 
-    breakpoint_t *bp = check_breakpoint_hit(ctx);
+    breakpoint_t *bp = at_breakpoint(ctx);
     if (bp) {
         char *func = get_func_symbol_from_pc(ctx->dwarf, get_pc(ctx->pid));
         printf("Hit: Breakpoint %d at 0x%lx in %s\n", bp->num, bp->addr, func);
@@ -161,6 +162,9 @@ void handle_command(dbg_ctx *ctx, char *command)
     else if (is_prefix(cmd, "memory"))
     {
         handle_memory_command(ctx->pid, args[1], args[2], args[3]);
+    }
+    else if (is_prefix(cmd, "si")) {
+        single_step(ctx);
     }
     else
     {
