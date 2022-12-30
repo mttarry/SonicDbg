@@ -12,6 +12,7 @@
 #include "debugger.h"
 #include "registers.h"
 #include "dbg_dwarf.h"
+#include "utils.h"
 
 void free_debugger(dbg_ctx *ctx) {
     for (int i = 0; i < ctx->active_breakpoints; ++i) {
@@ -38,25 +39,10 @@ void list_breakpoints(const dbg_ctx *ctx) {
     }
 }
 
-static bool bin_is_pie(dbg_ctx *ctx) {
-    Elf64_Ehdr *ehdr;
-    bool is_dyn = false;
-
-    ehdr = elf64_getehdr(ctx->elf);
-    if (ehdr == NULL) {
-        printf("Error: elf64_getehdr failed\n");
-        exit(EXIT_FAILURE);
-    }
-
-    is_dyn = ehdr->e_type == ET_DYN;
-
-    return is_dyn;
-}
-
 void set_bp_at_addr(dbg_ctx *ctx, uint64_t addr) {
     // Set breakpoint if limit has not been exceeded
     if (ctx->active_breakpoints < MAX_BREAKPOINTS) {
-        if (bin_is_pie(ctx)) {
+        if (bin_is_pie(ctx->elf)) {
             addr += ctx->load_addr;
         }
         breakpoint_t *new_bp = new_breakpoint(ctx->pid, ctx->active_breakpoints + 1, addr);
@@ -69,7 +55,6 @@ void set_bp_at_addr(dbg_ctx *ctx, uint64_t addr) {
     }
 }
 
-
 void set_bp_at_func(dbg_ctx *ctx, const char *symbol) {
     Dwarf_Addr addr = get_func_addr(ctx->dwarf, symbol);
     if (addr != 0) {
@@ -78,6 +63,15 @@ void set_bp_at_func(dbg_ctx *ctx, const char *symbol) {
     else {
         printf("Unable to set breakpoint at function %s\n", symbol);
     }
+}
+
+breakpoint_t *get_bp_at_address(dbg_ctx *ctx, uint64_t addr) {
+    for (int i = 0; i < ctx->active_breakpoints; ++i) {
+        if (ctx->breakpoints[i]->addr == (intptr_t)addr)
+            return ctx->breakpoints[i];
+    }
+
+    return NULL;
 }
 
 
@@ -107,16 +101,6 @@ uint64_t get_pc(const pid_t pid) {
 void set_pc(const pid_t pid, const uint64_t val) {
     set_register_value(pid, AARCH64_PC_REGNUM, val);
 }
-
-breakpoint_t *get_bp_at_address(dbg_ctx *ctx, uint64_t addr) {
-    for (int i = 0; i < ctx->active_breakpoints; ++i) {
-        if (ctx->breakpoints[i]->addr == (intptr_t)addr)
-            return ctx->breakpoints[i];
-    }
-
-    return NULL;
-}
-
 
 void wait_for_signal(const pid_t pid) {
     int wait_status;
@@ -153,6 +137,23 @@ void single_step(dbg_ctx *ctx) {
     }
 }
 
+void continue_execution(dbg_ctx *ctx) {
+    step_over_breakpoint(ctx);
+    if (ptrace(PTRACE_CONT, ctx->pid, NULL, NULL) < 0)
+    {
+        perror("Error: ");
+        exit(EXIT_FAILURE);
+    }
+    wait_for_signal(ctx->pid);
+
+    breakpoint_t *bp = at_breakpoint(ctx);
+    if (bp) {
+        char *func = get_func_symbol_from_pc(ctx->dwarf, get_pc(ctx->pid));
+        printf("Hit: Breakpoint %d at 0x%lx in %s\n", bp->num, bp->addr, func);
+    }
+}
+
+
 void init_elf(dbg_ctx *ctx) {
     if (elf_version(EV_CURRENT) == EV_NONE) {
         printf("ELF library initialization failed: %s\n", elf_errmsg(elf_errno()));
@@ -178,7 +179,7 @@ void init_load_addr(dbg_ctx *ctx) {
     char *linebuf, *filebuf;
     size_t buf_size = 100;
  
-    if (bin_is_pie(ctx)) {
+    if (bin_is_pie(ctx->elf)) {
         filebuf = malloc(buf_size * sizeof(char));
 
         sprintf(filebuf, "/proc/%d/maps", ctx->pid);

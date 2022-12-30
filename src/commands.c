@@ -11,39 +11,11 @@
 #include "utils.h"
 #include "dbg_dwarf.h"
 
-static void free_args(char **args)
-{
-    char **tmp = args;
-    while (*tmp)
-        free(*tmp++);
-    free(args);
-}
 
-static void continue_execution(dbg_ctx *ctx)
-{
+static void handle_continue_command(dbg_ctx *ctx) {
     printf("Continuing...\n");
-
-    step_over_breakpoint(ctx);
-    if (ptrace(PTRACE_CONT, ctx->pid, NULL, NULL) < 0)
-    {
-        perror("Error: ");
-        exit(EXIT_FAILURE);
-    }
-    wait_for_signal(ctx->pid);
-
-    breakpoint_t *bp = at_breakpoint(ctx);
-    if (bp) {
-        char *func = get_func_symbol_from_pc(ctx->dwarf, get_pc(ctx->pid));
-        printf("Hit: Breakpoint %d at 0x%lx in %s\n", bp->num, bp->addr, func);
-    }
+    continue_execution(ctx);
 }
-
-static bool is_symbol(const char *loc) {
-    if (loc[0] != '*') 
-        return true;
-    return false;
-}
-
 
 static void handle_breakpoint_command(dbg_ctx *ctx, const char *loc)
 {
@@ -149,7 +121,7 @@ void handle_command(dbg_ctx *ctx, char *command)
 
     if (is_prefix(cmd, "continue"))
     {
-        continue_execution(ctx);
+        handle_continue_command(ctx);
     }
     else if (is_prefix(cmd, "breakpoint"))
     {

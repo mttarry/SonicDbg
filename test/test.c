@@ -3,6 +3,8 @@
 
 const char *password = "password";
 
+extern int add(int a, int b);
+
 void print(const char *str) {
     printf("%s\n", str);
 }
@@ -10,4 +12,5 @@ void print(const char *str) {
 int main(void) {
     print(password);
     print("Hello World!\n");
+    printf("%d\n", add(1, 2));
 }

@@ -2,6 +2,9 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
+
+#include <libelf.h>
 
 #include "utils.h"
 
@@ -61,7 +64,7 @@ uint64_t convert_val_radix(const char *val) {
 
     if (val[0] == '0' && val[1] == 'x') 
         return strtoul(val, NULL, 16);
-        
+
     for (size_t i = 0; i < strlen(val); ++i) {
         if (isxdigit(val[i])) {
             return strtoul(val, NULL, 16);
@@ -69,4 +72,33 @@ uint64_t convert_val_radix(const char *val) {
     }
 
     return strtoul(val, NULL, 10);
+}
+
+void free_args(char **args)
+{
+    char **tmp = args;
+    while (*tmp)
+        free(*tmp++);
+    free(args);
+}
+
+bool is_symbol(const char *loc) {
+    if (loc[0] != '*') 
+        return true;
+    return false;
+}
+
+bool bin_is_pie(Elf *elf) {
+    Elf64_Ehdr *ehdr;
+    bool is_dyn = false;
+
+    ehdr = elf64_getehdr(elf);
+    if (ehdr == NULL) {
+        printf("Error: elf64_getehdr failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    is_dyn = ehdr->e_type == ET_DYN;
+
+    return is_dyn;
 }

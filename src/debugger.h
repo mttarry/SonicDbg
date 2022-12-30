@@ -27,6 +27,8 @@ void close_elf(dbg_ctx *ctx);
 void free_debugger(dbg_ctx *ctx);
 void init_load_addr(dbg_ctx *ctx);
 
+void continue_execution(dbg_ctx *ctx);
+
 void list_breakpoints(const dbg_ctx *ctx);
 void set_bp_at_addr(dbg_ctx *ctx, uint64_t addr);
 void set_bp_at_func(dbg_ctx *ctx, const char *symbol);
