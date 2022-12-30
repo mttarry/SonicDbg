@@ -13,7 +13,13 @@
 #include "registers.h"
 #include "dbg_dwarf.h"
 
-
+void free_debugger(dbg_ctx *ctx) {
+    for (int i = 0; i < ctx->active_breakpoints; ++i) {
+        free(ctx->breakpoints[i]);
+    }
+    dwarf_finish(ctx->dwarf);
+    close_elf(ctx);
+}
 
 breakpoint_t *at_breakpoint(dbg_ctx *ctx) {
     uint64_t pc = get_pc(ctx->pid);
@@ -32,9 +38,27 @@ void list_breakpoints(const dbg_ctx *ctx) {
     }
 }
 
+static bool bin_is_pie(dbg_ctx *ctx) {
+    Elf64_Ehdr *ehdr;
+    bool is_dyn = false;
+
+    ehdr = elf64_getehdr(ctx->elf);
+    if (ehdr == NULL) {
+        printf("Error: elf64_getehdr failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    is_dyn = ehdr->e_type == ET_DYN;
+
+    return is_dyn;
+}
+
 void set_bp_at_addr(dbg_ctx *ctx, uint64_t addr) {
+    // Set breakpoint if limit has not been exceeded
     if (ctx->active_breakpoints < MAX_BREAKPOINTS) {
-        // Set breakpoint if limit has not been exceeded
+        if (bin_is_pie(ctx)) {
+            addr += ctx->load_addr;
+        }
         breakpoint_t *new_bp = new_breakpoint(ctx->pid, ctx->active_breakpoints + 1, addr);
         enable_breakpoint(new_bp);
         ctx->breakpoints[ctx->active_breakpoints++] = new_bp;
@@ -44,6 +68,7 @@ void set_bp_at_addr(dbg_ctx *ctx, uint64_t addr) {
         printf("Error: too many breakpoints active\n");
     }
 }
+
 
 void set_bp_at_func(dbg_ctx *ctx, const char *symbol) {
     Dwarf_Addr addr = get_func_addr(ctx->dwarf, symbol);
@@ -128,12 +153,12 @@ void single_step(dbg_ctx *ctx) {
     }
 }
 
-void init_elf(dbg_ctx *ctx, int fd) {
+void init_elf(dbg_ctx *ctx) {
     if (elf_version(EV_CURRENT) == EV_NONE) {
         printf("ELF library initialization failed: %s\n", elf_errmsg(elf_errno()));
         exit(EXIT_FAILURE);
     }
-    if ((ctx->elf = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
+    if ((ctx->elf = elf_begin(ctx->elf_fd, ELF_C_READ, NULL)) == NULL) {
         printf(" elf_begin () failed: %s\n", elf_errmsg(elf_errno()));
         exit(EXIT_FAILURE);
     }
@@ -143,23 +168,10 @@ void init_elf(dbg_ctx *ctx, int fd) {
     }
 }
 
-void close_elf(dbg_ctx *ctx, int fd) {
+void close_elf(dbg_ctx *ctx) {
     elf_end(ctx->elf);
-    close(fd);
+    close(ctx->elf_fd);
 }
-
-static bool bin_is_pie(dbg_ctx *ctx) {
-    Elf64_Ehdr *ehdr;
-
-    ehdr = elf64_getehdr(ctx->elf);
-    if (ehdr == NULL) {
-        printf("Error: elf64_getehdr failed\n");
-        exit(EXIT_FAILURE);
-    }
-
-    return ehdr->e_type == ET_DYN;
-}
-
 
 void init_load_addr(dbg_ctx *ctx) {
     FILE *file;
@@ -186,5 +198,6 @@ void init_load_addr(dbg_ctx *ctx) {
 
         free(linebuf);
         free(filebuf);
+        fclose(file);
     }
 }

@@ -12,10 +12,7 @@
 #include "dbg_dwarf.h"
 
 
-
 int main(int argc, char **argv) {
-    int fd;
-
     if (argc < 2) {
         printf("Please specify an executable file as input\n");
         exit(EXIT_FAILURE);
@@ -41,12 +38,13 @@ int main(int argc, char **argv) {
 
         dwarf_init(&ctx.dwarf, ctx.program_name);
 
-        if ((fd = open(ctx.program_name, O_RDONLY, 0)) < 0) {
+        if ((ctx.elf_fd = open(ctx.program_name, O_RDONLY, 0)) < 0) {
             printf(" opening \"%s\" failed\n", argv[1]);
             exit(EXIT_FAILURE);
         }
 
-        init_elf(&ctx, fd);
+        init_elf(&ctx);
+
         init_load_addr(&ctx);
 
         size_t buf_size = 512;
@@ -54,14 +52,10 @@ int main(int argc, char **argv) {
 
         while (1) {
             printf("parpdbg> ");
-
             getline(&buf, &buf_size, stdin);
-
             handle_command(&ctx, buf);
         }
-
-        close_elf(&ctx, fd);
-        dwarf_finish(ctx.dwarf);
-        free(buf);
+        
+        
     }
 }

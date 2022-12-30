@@ -99,7 +99,8 @@ static Dwarf_Die find_subprog_die(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Bool is_
     }
     else if (ret == DW_DLV_OK) {
         find_subprog_die(dbg, child_die, is_info, symbol, pc);
-        dwarf_dealloc(dbg, child_die, DW_DLA_DIE);
+        if (ret_die && ret_die != child_die)
+            dwarf_dealloc(dbg, child_die, DW_DLA_DIE);
     }
 
     ret = dwarf_siblingof_b(dbg, die, is_info, &sibling_die, NULL);
@@ -109,7 +110,8 @@ static Dwarf_Die find_subprog_die(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Bool is_
     }
     else if (ret == DW_DLV_OK) {
         find_subprog_die(dbg, sibling_die, is_info, symbol, pc);
-        dwarf_dealloc(dbg, sibling_die, DW_DLA_DIE);
+        if (ret_die && ret_die != sibling_die)
+            dwarf_dealloc(dbg, sibling_die, DW_DLA_DIE);
     }
     
     return ret_die;
@@ -183,30 +185,31 @@ char* get_func_symbol_from_pc(Dwarf_Debug dbg, uint64_t pc) {
     return NULL;
 }
 
+
 Dwarf_Addr get_func_addr(Dwarf_Debug dbg, const char *symbol) {
     Dwarf_Die subprog_die;
     char *subprog_name;
-    Dwarf_Attribute *attrs;
-    Dwarf_Addr brkpoint_addr;
-    Dwarf_Signed attr_count, it;
-    Dwarf_Error err;
+    Dwarf_Attribute *attrs = 0;
+    Dwarf_Addr brkpoint_addr = 0;
+    Dwarf_Signed attr_count = 0, it = 0;
+    Dwarf_Error err = 0;
 
     subprog_die = get_subprog_die_cu(dbg, symbol, 0);
 
     if (dwarf_diename(subprog_die, &subprog_name, &err) == DW_DLV_OK) {
         if (strncmp(subprog_name, symbol, strlen(subprog_name)) == 0) {
-            if (dwarf_attrlist(subprog_die, &attrs, &attr_count, NULL) != DW_DLV_OK) {
+            if (dwarf_attrlist(subprog_die, &attrs, &attr_count, &err) != DW_DLV_OK) {
                 printf("Error in dwarf_attrlist\n");
                 exit(EXIT_FAILURE);
             }
             for (it = 0; it < attr_count; ++it) {
                 Dwarf_Half attr_code;
-                if (dwarf_whatattr(attrs[it], &attr_code, NULL) != DW_DLV_OK) {
+                if (dwarf_whatattr(attrs[it], &attr_code, &err) != DW_DLV_OK) {
                     printf("Error in dwarf_whatattr\n");
                     exit(EXIT_FAILURE);
                 }
                 if (attr_code == DW_AT_low_pc) {
-                    dwarf_formaddr(attrs[it], &brkpoint_addr, NULL);
+                    dwarf_formaddr(attrs[it], &brkpoint_addr, &err);
                     return brkpoint_addr;
                 }
             }

@@ -166,6 +166,12 @@ void handle_command(dbg_ctx *ctx, char *command)
     else if (is_prefix(cmd, "si")) {
         single_step(ctx);
     }
+    else if (is_prefix(cmd, "quit")) {
+        free_debugger(ctx);
+        free_args(args);
+        free(command);
+        exit(EXIT_SUCCESS);
+    }
     else
     {
         printf("Unknown command!\n");

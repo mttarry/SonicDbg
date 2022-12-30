@@ -18,11 +18,13 @@ typedef struct {
     breakpoint_t *breakpoints[MAX_BREAKPOINTS];
     Dwarf_Debug dwarf;
     Elf *elf;
+    int elf_fd;
     intptr_t load_addr;
 } dbg_ctx;
 
-void init_elf(dbg_ctx *ctx, int fd);
-void close_elf(dbg_ctx *ctx, int fd);
+void init_elf(dbg_ctx *ctx);
+void close_elf(dbg_ctx *ctx);
+void free_debugger(dbg_ctx *ctx);
 void init_load_addr(dbg_ctx *ctx);
 
 void list_breakpoints(const dbg_ctx *ctx);
