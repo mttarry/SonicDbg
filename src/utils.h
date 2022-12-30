@@ -2,6 +2,8 @@
 #define UTILS_H
 
 #include <stdbool.h>
+#include <stdint.h>
+#include <libelf.h>
 
 #define MAX_ARGS 4
 #define ARG_LEN 32

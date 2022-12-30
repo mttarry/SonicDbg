@@ -1,10 +1,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <stdio.h>
-
-#include <libelf.h>
 
 #include "utils.h"
 
