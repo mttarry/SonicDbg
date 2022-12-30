@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <limits.h>
 
 #include "dbg_dwarf.h"
 #include "utils.h"
@@ -34,7 +35,7 @@ void dwarf_init(Dwarf_Debug *dbg, const char *program_name) {
     }
 }
 
-static bool pc_in_die(Dwarf_Die die, Dwarf_Addr pc) {
+static bool pc_in_die(dbg_ctx *ctx, Dwarf_Die die, Dwarf_Addr pc) {
     int ret;
     Dwarf_Addr cu_lowpc, cu_highpc;
     enum Dwarf_Form_Class highpc_cls;
@@ -71,7 +72,7 @@ static bool cmp_die_subprog_name(Dwarf_Die subprogram, const char *symbol) {
 
 // If symbol is NULL, get subprogram die based on PC
 // Else, get subprogram die based on symbol
-static Dwarf_Die find_subprog_die(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Bool is_info, const char *symbol, uint64_t pc) {
+static Dwarf_Die find_subprog_die(dbg_ctx *ctx, Dwarf_Die die, Dwarf_Bool is_info, const char *symbol, uint64_t pc) {
     static Dwarf_Die ret_die = NULL;
     Dwarf_Die child_die, sibling_die;
     Dwarf_Half tag;
@@ -86,7 +87,7 @@ static Dwarf_Die find_subprog_die(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Bool is_
             ret_die = die;
             return ret_die;
         }
-        else if (pc_in_die(die, pc)) {
+        else if (pc_in_die(ctx, die, pc)) {
             ret_die = die;
             return ret_die;
         }
@@ -98,27 +99,27 @@ static Dwarf_Die find_subprog_die(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Bool is_
         exit(1);
     }
     else if (ret == DW_DLV_OK) {
-        find_subprog_die(dbg, child_die, is_info, symbol, pc);
+        find_subprog_die(ctx, child_die, is_info, symbol, pc);
         if (ret_die && ret_die != child_die)
-            dwarf_dealloc(dbg, child_die, DW_DLA_DIE);
+            dwarf_dealloc(ctx->dwarf, child_die, DW_DLA_DIE);
     }
 
-    ret = dwarf_siblingof_b(dbg, die, is_info, &sibling_die, NULL);
+    ret = dwarf_siblingof_b(ctx->dwarf, die, is_info, &sibling_die, NULL);
     if (ret == DW_DLV_ERROR) {
         printf("Error in dwarf_siblingof_b\n");
         exit(1);
     }
     else if (ret == DW_DLV_OK) {
-        find_subprog_die(dbg, sibling_die, is_info, symbol, pc);
+        find_subprog_die(ctx, sibling_die, is_info, symbol, pc);
         if (ret_die && ret_die != sibling_die)
-            dwarf_dealloc(dbg, sibling_die, DW_DLA_DIE);
+            dwarf_dealloc(ctx->dwarf, sibling_die, DW_DLA_DIE);
     }
     
     return ret_die;
 }
 
 
-static Dwarf_Die get_subprog_die_cu(Dwarf_Debug dbg, const char *symbol, uint64_t pc) {
+static Dwarf_Die get_subprog_die_cu(dbg_ctx *ctx, const char *symbol, uint64_t pc) {
     int res;
     Dwarf_Bool is_info = 1;
     Dwarf_Unsigned cu_hdr_len = 0;
@@ -134,7 +135,7 @@ static Dwarf_Die get_subprog_die_cu(Dwarf_Debug dbg, const char *symbol, uint64_
         Dwarf_Die no_die = 0;
         Dwarf_Die cu_die = 0;
 
-        res = dwarf_next_cu_header_d(dbg,
+        res = dwarf_next_cu_header_d(ctx->dwarf,
                 is_info,
                 &cu_hdr_len,
                 &version_stamp,
@@ -154,7 +155,7 @@ static Dwarf_Die get_subprog_die_cu(Dwarf_Debug dbg, const char *symbol, uint64_
             break;
         }
 
-        res = dwarf_siblingof_b(dbg, no_die, is_info, &cu_die, &err);
+        res = dwarf_siblingof_b(ctx->dwarf, no_die, is_info, &cu_die, &err);
         if (res == DW_DLV_ERROR) {
             char *em = err ? dwarf_errmsg(err) : "unknown error";
             printf("Error in dwarf_siblingof_b (level 0): %s\n", em);
@@ -165,22 +166,19 @@ static Dwarf_Die get_subprog_die_cu(Dwarf_Debug dbg, const char *symbol, uint64_
             exit(EXIT_FAILURE);
         }
 
-        subprog_die = find_subprog_die(dbg, cu_die, is_info, symbol, pc);
-        dwarf_dealloc(dbg, cu_die, DW_DLA_DIE);
+        subprog_die = find_subprog_die(ctx, cu_die, is_info, symbol, pc);
+        dwarf_dealloc(ctx->dwarf, cu_die, DW_DLA_DIE);
     }
 
     return subprog_die;
 }
 
 
-char* get_func_symbol_from_pc(dbg_ctx *ctx, Dwarf_Debug dbg, uint64_t pc) {
+char* get_func_symbol_from_pc(dbg_ctx *ctx, uint64_t pc) {
     Dwarf_Die subprog_die;
     char *subprog_name;
 
-    if (bin_is_pie(ctx->elf)) 
-        pc -= ctx->load_addr;
-        
-    subprog_die = get_subprog_die_cu(dbg, NULL, pc);
+    subprog_die = get_subprog_die_cu(ctx, NULL, pc);
     if (dwarf_diename(subprog_die, &subprog_name, NULL) == DW_DLV_OK) {
         return subprog_name;
     }
@@ -188,8 +186,105 @@ char* get_func_symbol_from_pc(dbg_ctx *ctx, Dwarf_Debug dbg, uint64_t pc) {
     return NULL;
 }
 
+static Dwarf_Die get_cu_die_by_pc(dbg_ctx *ctx, uint64_t pc) {
+    int res;
+    Dwarf_Bool is_info = 1;
+    Dwarf_Unsigned cu_hdr_len = 0;
+    Dwarf_Half version_stamp = 0;
+    Dwarf_Off abbrev_offset = 0;
+    Dwarf_Half address_size = 0;
+    Dwarf_Unsigned next_cu_header = 0;
+    Dwarf_Error err = 0;
+    
+    Dwarf_Die ret_die = 0;
 
-Dwarf_Addr get_func_addr(Dwarf_Debug dbg, const char *symbol) {
+    while (1) {
+        Dwarf_Die no_die = 0;
+        Dwarf_Die cu_die = 0;
+
+        res = dwarf_next_cu_header_d(ctx->dwarf,
+                is_info,
+                &cu_hdr_len,
+                &version_stamp,
+                &abbrev_offset,
+                &address_size,
+                0,0,0,0,
+                &next_cu_header,
+                0,
+                &err);
+        
+        if (res == DW_DLV_ERROR) {
+            char *em = err ? dwarf_errmsg(err) : "unknown error";
+            printf("Error in dwarf_next_cu_header_d: %s\n", em);
+            exit(1);
+        }
+        else if (res == DW_DLV_NO_ENTRY) {
+            break;
+        }
+
+        res = dwarf_siblingof_b(ctx->dwarf, no_die, is_info, &cu_die, &err);
+        if (res == DW_DLV_ERROR) {
+            char *em = err ? dwarf_errmsg(err) : "unknown error";
+            printf("Error in dwarf_siblingof_b (level 0): %s\n", em);
+            exit(1);
+        }
+        else if (res == DW_DLV_NO_ENTRY) {
+            printf("No DIE of Compilation Unit\n");
+            exit(EXIT_FAILURE);
+        }
+
+        if (pc_in_die(ctx, cu_die, pc)) {
+            ret_die = cu_die;
+        }
+        else {
+            dwarf_dealloc(ctx->dwarf, cu_die, DW_DLA_DIE);
+        }
+    }
+
+    return ret_die;
+}
+
+static Dwarf_Line get_pc_line(Dwarf_Die cu_die, uint64_t pc) {
+    Dwarf_Unsigned version_out = 0;
+    Dwarf_Small is_single_table = 0;
+    Dwarf_Line_Context context_out = 0;
+    Dwarf_Error err = 0;
+    Dwarf_Line *linebuf = 0;
+    Dwarf_Signed linecount = 0;
+    Dwarf_Addr lineaddr = 0;
+
+    if (dwarf_srclines_b(cu_die, &version_out, &is_single_table, &context_out, &err) == DW_DLV_OK) {
+        if (dwarf_srclines_from_linecontext(context_out, &linebuf, &linecount, &err) == DW_DLV_OK) {
+            for (int i = 0; i < linecount; ++i) {
+                if (dwarf_lineaddr(linebuf[i], &lineaddr, &err) == DW_DLV_OK) {
+                    if (pc == lineaddr) return linebuf[i];
+                } 
+            }
+        }
+    }
+
+    return 0;
+}
+
+Dwarf_Unsigned get_pc_lineno(dbg_ctx *ctx, uint64_t pc) {
+    Dwarf_Unsigned ret_lineno = 0;
+    Dwarf_Error err = 0;
+
+    Dwarf_Die cu_die = get_cu_die_by_pc(ctx, pc);
+    Dwarf_Line pc_line = get_pc_line(cu_die, pc);
+
+    if (dwarf_lineno(pc_line, &ret_lineno, &err) != DW_DLV_OK) {
+        printf("Error in dwarf_lineno\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    return ret_lineno;
+}
+
+
+
+
+Dwarf_Addr get_func_addr(dbg_ctx *ctx, const char *symbol) {
     Dwarf_Die subprog_die;
     char *subprog_name;
     Dwarf_Attribute *attrs = 0;
@@ -197,7 +292,7 @@ Dwarf_Addr get_func_addr(Dwarf_Debug dbg, const char *symbol) {
     Dwarf_Signed attr_count = 0, it = 0;
     Dwarf_Error err = 0;
 
-    subprog_die = get_subprog_die_cu(dbg, symbol, 0);
+    subprog_die = get_subprog_die_cu(ctx, symbol, 0);
 
     if (dwarf_diename(subprog_die, &subprog_name, &err) == DW_DLV_OK) {
         if (strncmp(subprog_name, symbol, strlen(subprog_name)) == 0) {

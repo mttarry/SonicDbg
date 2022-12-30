@@ -56,7 +56,7 @@ void set_bp_at_addr(dbg_ctx *ctx, uint64_t addr) {
 }
 
 void set_bp_at_func(dbg_ctx *ctx, const char *symbol) {
-    Dwarf_Addr addr = get_func_addr(ctx->dwarf, symbol);
+    Dwarf_Addr addr = get_func_addr(ctx, symbol);
     if (addr != 0) {
         set_bp_at_addr(ctx, addr);
     }
@@ -148,8 +148,14 @@ void continue_execution(dbg_ctx *ctx) {
 
     breakpoint_t *bp = at_breakpoint(ctx);
     if (bp) {
-        char *func = get_func_symbol_from_pc(ctx, ctx->dwarf, get_pc(ctx->pid));
-        printf("Hit: Breakpoint %d at 0x%lx in %s\n", bp->num, bp->addr, func);
+        uint64_t pc = get_pc(ctx->pid);
+
+        if (bin_is_pie(ctx->elf))
+            pc -= ctx->load_addr;
+
+        char *func = get_func_symbol_from_pc(ctx, pc);
+        Dwarf_Unsigned lineno = get_pc_lineno(ctx, pc);
+        printf("Hit: Breakpoint %d at 0x%lx in %s in at line %llu of \n", bp->num, bp->addr, func, lineno);
     }
 }
 
