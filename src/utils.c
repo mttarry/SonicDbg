@@ -99,3 +99,19 @@ bool bin_is_pie(Elf *elf) {
 
     return is_dyn;
 }
+
+char *loc_last_dir(char *str) {
+
+    size_t loc = 0, last_slash = 0;
+    for (int i = strlen(str) - 1; i >= 0; --i) {
+        if (str[i] == '/' && last_slash == 0) {
+            last_slash = i;
+        }
+        else if (str[i] == '/' && last_slash != 0) {
+            loc = i;
+            break;
+        }
+    }
+
+    return str + loc + 1;
+} 

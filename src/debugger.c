@@ -154,8 +154,9 @@ void continue_execution(dbg_ctx *ctx) {
             pc -= ctx->load_addr;
 
         char *func = get_func_symbol_from_pc(ctx, pc);
-        Dwarf_Unsigned lineno = get_pc_lineno(ctx, pc);
-        printf("Hit: Breakpoint %d at 0x%lx in %s in at line %llu of \n", bp->num, bp->addr, func, lineno);
+        struct src_info src_info = get_src_info(ctx, pc);
+        printf("Hit: Breakpoint %d at 0x%lx in %s at line %llu of %s\n", bp->num, bp->addr, func, src_info.line_no, loc_last_dir(src_info.src_file_name));
+        free(src_info.src_file_name);
     }
 }
 

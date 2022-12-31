@@ -35,7 +35,7 @@ void dwarf_init(Dwarf_Debug *dbg, const char *program_name) {
     }
 }
 
-static bool pc_in_die(dbg_ctx *ctx, Dwarf_Die die, Dwarf_Addr pc) {
+static bool pc_in_die(Dwarf_Die die, Dwarf_Addr pc) {
     int ret;
     Dwarf_Addr cu_lowpc, cu_highpc;
     enum Dwarf_Form_Class highpc_cls;
@@ -87,7 +87,7 @@ static Dwarf_Die find_subprog_die(dbg_ctx *ctx, Dwarf_Die die, Dwarf_Bool is_inf
             ret_die = die;
             return ret_die;
         }
-        else if (pc_in_die(ctx, die, pc)) {
+        else if (pc_in_die(die, pc)) {
             ret_die = die;
             return ret_die;
         }
@@ -233,7 +233,7 @@ static Dwarf_Die get_cu_die_by_pc(dbg_ctx *ctx, uint64_t pc) {
             exit(EXIT_FAILURE);
         }
 
-        if (pc_in_die(ctx, cu_die, pc)) {
+        if (pc_in_die(cu_die, pc)) {
             ret_die = cu_die;
         }
         else {
@@ -266,20 +266,54 @@ static Dwarf_Line get_pc_line(Dwarf_Die cu_die, uint64_t pc) {
     return 0;
 }
 
-Dwarf_Unsigned get_pc_lineno(dbg_ctx *ctx, uint64_t pc) {
-    Dwarf_Unsigned ret_lineno = 0;
+struct src_info get_src_info(dbg_ctx *ctx, uint64_t pc) {
+    Dwarf_Unsigned ret_lineno = 0, ret_fileno = 0;
+    Dwarf_Signed filecount = 0;
     Dwarf_Error err = 0;
+    char *srcfile, *ret_str;
+    char **src_files; 
+
+    struct src_info src_info = {};
 
     Dwarf_Die cu_die = get_cu_die_by_pc(ctx, pc);
     Dwarf_Line pc_line = get_pc_line(cu_die, pc);
 
+    if (cu_die == NULL) {
+        printf("Error: Couldn't find CU DIE corresponding to PC\n");
+        exit(EXIT_FAILURE);
+    }
+    if (pc_line == NULL) {
+        printf("Error: Couldn't find Dwarf_Line corresponding to PC\n");
+        exit(EXIT_FAILURE);
+    }
     if (dwarf_lineno(pc_line, &ret_lineno, &err) != DW_DLV_OK) {
         printf("Error in dwarf_lineno\n");
         exit(EXIT_FAILURE);
     }
+
+    src_info.src_line = pc_line;
+    src_info.line_no = ret_lineno;
+
+    if (dwarf_srcfiles(cu_die, &src_files, &filecount, &err) == DW_DLV_OK) {
+        if (dwarf_line_srcfileno(pc_line, &ret_fileno, &err) == DW_DLV_OK) {
+            srcfile = src_files[ret_fileno - 1];
+            ret_str = calloc(strlen(srcfile) + 1, sizeof(char));
+            memcpy(ret_str, srcfile, strlen(srcfile) + 1);
+            src_info.src_file_name = ret_str;
+        }
+        else {
+            printf("Error: Couldn't find src file number corresponding to Dwarf_Line\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+    else {
+        printf("Error: Couldn't get src file list from CU DIE\n");
+        exit(EXIT_FAILURE);
+    }
     
-    return ret_lineno;
+    return src_info;
 }
+
 
 
 

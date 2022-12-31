@@ -15,5 +15,6 @@ uint64_t convert_val_radix(const char *val);
 void free_args(char **args);
 bool is_symbol(const char *loc);
 bool bin_is_pie(Elf *elf);
+char *loc_last_dir(char *str);
 
 #endif
