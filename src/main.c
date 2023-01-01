@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
         ctx.program_name = path;
         ctx.pid = child_pid;
 
-        wait_for_signal(ctx.pid);
+        wait_for_signal(&ctx);
 
         dwarf_init(&ctx.dwarf, ctx.program_name);
 

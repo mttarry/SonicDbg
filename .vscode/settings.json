@@ -7,6 +7,7 @@
         "stdio.h": "c",
         "ptrace.h": "c",
         "libdwarf.h": "c",
-        "dwarf.h": "c"
+        "dwarf.h": "c",
+        "signal.h": "c"
     }
 }

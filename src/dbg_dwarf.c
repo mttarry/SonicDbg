@@ -314,9 +314,26 @@ struct src_info get_src_info(dbg_ctx *ctx, uint64_t pc) {
     return src_info;
 }
 
+void print_source(struct src_info *src_info) {
+    FILE *f;
+    if ((f = fopen(src_info->src_file_name, "r")) == NULL) {
+        printf("Failure to open %s\n", src_info->src_file_name);
+        exit(EXIT_FAILURE);
+    }
 
+    char line[256];
+    Dwarf_Unsigned count = 0;
+    while (fgets(line, sizeof(line), f) != NULL) {
+        if (count == src_info->line_no) {
+            printf("%llu\t%s", src_info->line_no, line);
+            break;
+        }
+        
+        count++;
+    }
 
-
+    fclose(f);
+} 
 
 Dwarf_Addr get_func_addr(dbg_ctx *ctx, const char *symbol) {
     Dwarf_Die subprog_die;

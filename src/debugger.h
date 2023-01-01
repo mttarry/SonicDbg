@@ -42,7 +42,7 @@ void set_pc(const pid_t pid, const uint64_t val);
 void step_over_breakpoint(dbg_ctx *ctx);
 breakpoint_t *at_breakpoint(dbg_ctx *ctx);
 
-void wait_for_signal(const pid_t pid);
+void wait_for_signal(dbg_ctx *ctx);
 
 void single_step(dbg_ctx *ctx);
 

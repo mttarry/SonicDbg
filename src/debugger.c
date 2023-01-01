@@ -1,3 +1,5 @@
+#define _XOPEN_SOURCE 700
+
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 
@@ -8,11 +10,13 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include "debugger.h"
 #include "registers.h"
 #include "dbg_dwarf.h"
 #include "utils.h"
+
 
 void free_debugger(dbg_ctx *ctx) {
     for (int i = 0; i < ctx->active_breakpoints; ++i) {
@@ -21,6 +25,40 @@ void free_debugger(dbg_ctx *ctx) {
     dwarf_finish(ctx->dwarf);
     close_elf(ctx);
 }
+
+static void handle_sigtrap(dbg_ctx *ctx, siginfo_t info) {
+    switch (info.si_code) {
+        case TRAP_BRKPT:
+        {
+            breakpoint_t *bp = at_breakpoint(ctx);
+            uint64_t pc = get_pc(ctx->pid);
+
+            if (bin_is_pie(ctx->elf))
+                pc -= ctx->load_addr;
+
+            char *func = get_func_symbol_from_pc(ctx, pc);
+            struct src_info src_info = get_src_info(ctx, pc);
+            printf("Breakpoint %d, " BLU "0x%lx " RESET "in %s at line %llu of " GRN "%s\n" RESET, bp->num, bp->addr, func, src_info.line_no, loc_last_dir(src_info.src_file_name));
+            print_source(&src_info);
+            free(src_info.src_file_name);
+            return;
+        }
+        case SI_USER:
+            return;
+        case TRAP_TRACE:
+            return;
+        default:
+            printf("Unknown SIGTRAP: %s\n", strsignal(info.si_signo));
+            return;
+    }
+}
+
+static siginfo_t get_signal_info(pid_t pid) {
+    siginfo_t info;
+    ptrace(PTRACE_GETSIGINFO, pid, NULL, &info);
+    return info;
+}
+
 
 breakpoint_t *at_breakpoint(dbg_ctx *ctx) {
     uint64_t pc = get_pc(ctx->pid);
@@ -102,10 +140,24 @@ void set_pc(const pid_t pid, const uint64_t val) {
     set_register_value(pid, AARCH64_PC_REGNUM, val);
 }
 
-void wait_for_signal(const pid_t pid) {
+void wait_for_signal(dbg_ctx *ctx) {
     int wait_status;
     int options = 0;
-    waitpid(pid, &wait_status, options);
+    waitpid(ctx->pid, &wait_status, options);
+
+    siginfo_t siginfo = get_signal_info(ctx->pid);
+    switch (siginfo.si_signo) {
+        case SIGTRAP:
+            handle_sigtrap(ctx, siginfo);
+            break;
+        case SIGSEGV:
+            printf("Segfault: %d\n", siginfo.si_code);
+            break;
+        default:
+            printf("Got signal: %s\n", strsignal(siginfo.si_signo));
+            break;
+    }
+
 }
 
 void step_over_breakpoint(dbg_ctx *ctx) {
@@ -120,7 +172,7 @@ void step_over_breakpoint(dbg_ctx *ctx) {
             exit(EXIT_FAILURE);
         }
 
-        wait_for_signal(ctx->pid);
+        wait_for_signal(ctx);
         enable_breakpoint(bp);
     }
 }
@@ -144,20 +196,21 @@ void continue_execution(dbg_ctx *ctx) {
         perror("Error: ");
         exit(EXIT_FAILURE);
     }
-    wait_for_signal(ctx->pid);
+    wait_for_signal(ctx);
 
-    breakpoint_t *bp = at_breakpoint(ctx);
-    if (bp) {
-        uint64_t pc = get_pc(ctx->pid);
+    // breakpoint_t *bp = at_breakpoint(ctx);
+    // if (bp) {
+    //     uint64_t pc = get_pc(ctx->pid);
 
-        if (bin_is_pie(ctx->elf))
-            pc -= ctx->load_addr;
+    //     if (bin_is_pie(ctx->elf))
+    //         pc -= ctx->load_addr;
 
-        char *func = get_func_symbol_from_pc(ctx, pc);
-        struct src_info src_info = get_src_info(ctx, pc);
-        printf("Hit: Breakpoint %d at 0x%lx in %s at line %llu of %s\n", bp->num, bp->addr, func, src_info.line_no, loc_last_dir(src_info.src_file_name));
-        free(src_info.src_file_name);
-    }
+    //     char *func = get_func_symbol_from_pc(ctx, pc);
+    //     struct src_info src_info = get_src_info(ctx, pc);
+    //     printf("Hit: Breakpoint %d at 0x%lx in %s at line %llu of %s\n", bp->num, bp->addr, func, src_info.line_no, loc_last_dir(src_info.src_file_name));
+    //     print_source(&src_info);
+    //     free(src_info.src_file_name);
+    // }
 }
 
 
@@ -209,3 +262,4 @@ void init_load_addr(dbg_ctx *ctx) {
         fclose(file);
     }
 }
+

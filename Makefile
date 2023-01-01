@@ -1,7 +1,7 @@
-CC 			:= gcc
+CC 			:= gcc 
 CFLAGS 		:= -std=gnu99 -Wall -Wextra
 LD 			:= gcc
-LDFLAGS 	:= -o main -g -lgcc
+LDFLAGS 	:= -o main -g -lgcc 
 DEBUG		:= -DDEBUG
 
 LIBDWARF 	:= $(shell pkg-config --libs --cflags libdwarf)

@@ -8,6 +8,10 @@
 #define MAX_ARGS 4
 #define ARG_LEN 32
 
+#define GRN   "\x1B[32m"
+#define BLU   "\x1B[34m"
+#define RESET "\x1B[0m"
+
 void trim_ends(char **s);
 int is_prefix(const char *prefix, const char *str);
 char** split(char *s);
