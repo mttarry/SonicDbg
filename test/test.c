@@ -11,6 +11,6 @@ void print(const char *str) {
 
 int main(void) {
     print(password);
-    print("Hello World!\n");
+    print("Hello World!");
     printf("%d\n", add(1, 2));
 }
