@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
         char *buf = malloc(buf_size * sizeof(char));
 
         while (1) {
-            printf("parpdbg> ");
+            printf("sonicdbg> ");
             getline(&buf, &buf_size, stdin);
             if (!handle_command(&ctx, buf)) {
                 free_debugger(&ctx);
