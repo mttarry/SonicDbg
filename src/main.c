@@ -53,7 +53,11 @@ int main(int argc, char **argv) {
         while (1) {
             printf("parpdbg> ");
             getline(&buf, &buf_size, stdin);
-            handle_command(&ctx, buf);
+            if (!handle_command(&ctx, buf)) {
+                free_debugger(&ctx);
+                free(buf);
+                break;
+            }
         }
         
         

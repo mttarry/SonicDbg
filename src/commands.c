@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "debugger.h"
 #include "commands.h"
@@ -12,9 +13,9 @@
 #include "dbg_dwarf.h"
 
 
-static void handle_continue_command(dbg_ctx *ctx) {
+static bool handle_continue_command(dbg_ctx *ctx) {
     printf("Continuing...\n");
-    continue_execution(ctx);
+    return continue_execution(ctx);
 }
 
 static void handle_breakpoint_command(dbg_ctx *ctx, const char *loc)
@@ -110,18 +111,21 @@ void handle_memory_command(const pid_t pid,
     }
 }
 
-void handle_command(dbg_ctx *ctx, char *command)
+bool handle_command(dbg_ctx *ctx, char *command)
 {
     // remove leading and trailing whitespace
     trim_ends(&command);
 
     // split command into separate arguments
     char **args = split(command);
+    
+
     char *cmd = args[0];
+    bool ret = true;
 
     if (is_prefix(cmd, "continue"))
     {
-        handle_continue_command(ctx);
+        ret = handle_continue_command(ctx);
     }
     else if (is_prefix(cmd, "breakpoint"))
     {
@@ -139,17 +143,14 @@ void handle_command(dbg_ctx *ctx, char *command)
         single_step(ctx);
     }
     else if (is_prefix(cmd, "quit")) {
-        free_debugger(ctx);
-        free_args(args);
-        free(command);
-        exit(EXIT_SUCCESS);
+        ret = false;
     }
     else
     {
         printf("Unknown command!\n");
-        goto error;
     }
 
-error:
     free_args(args);
+
+    return ret;
 }

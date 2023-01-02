@@ -6,6 +6,7 @@
 #include <libdwarf-0/dwarf.h>
 #include <libdwarf-0/libdwarf.h>
 #include <libelf.h>
+#include <stdbool.h>
 
 #include "breakpoint.h"
 
@@ -20,6 +21,7 @@ typedef struct {
     Elf *elf;
     int elf_fd;
     intptr_t load_addr;
+    char **args;
 } dbg_ctx;
 
 void init_elf(dbg_ctx *ctx);
@@ -27,7 +29,7 @@ void close_elf(dbg_ctx *ctx);
 void free_debugger(dbg_ctx *ctx);
 void init_load_addr(dbg_ctx *ctx);
 
-void continue_execution(dbg_ctx *ctx);
+bool continue_execution(dbg_ctx *ctx);
 
 void list_breakpoints(const dbg_ctx *ctx);
 void set_bp_at_addr(dbg_ctx *ctx, uint64_t addr);
@@ -42,7 +44,7 @@ void set_pc(const pid_t pid, const uint64_t val);
 void step_over_breakpoint(dbg_ctx *ctx);
 breakpoint_t *at_breakpoint(dbg_ctx *ctx);
 
-void wait_for_signal(dbg_ctx *ctx);
+bool wait_for_signal(dbg_ctx *ctx);
 
 void single_step(dbg_ctx *ctx);
 

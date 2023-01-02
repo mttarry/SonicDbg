@@ -8,6 +8,7 @@
         "ptrace.h": "c",
         "libdwarf.h": "c",
         "dwarf.h": "c",
-        "signal.h": "c"
+        "signal.h": "c",
+        "dbg_dwarf.h": "c"
     }
 }

@@ -156,10 +156,27 @@ void set_pc(const pid_t pid, const uint64_t val) {
     set_register_value(pid, AARCH64_PC_REGNUM, val);
 }
 
-void wait_for_signal(dbg_ctx *ctx) {
+static bool check_if_exit(dbg_ctx *ctx, int wait_status) {
+    if (WIFEXITED(wait_status)) {
+        int exit_status = WEXITSTATUS(wait_status);
+        if (exit_status) {
+            printf("Child %d exited normally with status %d\n", ctx->pid, exit_status);
+        }
+        else {
+            printf("Child exited with status %d\n", exit_status);
+        }
+        return true;
+    }
+    return false;
+}
+
+bool wait_for_signal(dbg_ctx *ctx) {
     int wait_status;
     int options = 0;
     waitpid(ctx->pid, &wait_status, options);
+    if (check_if_exit(ctx, wait_status)) {
+        return false;
+    }
 
     siginfo_t siginfo = get_signal_info(ctx->pid);
     switch (siginfo.si_signo) {
@@ -169,11 +186,15 @@ void wait_for_signal(dbg_ctx *ctx) {
         case SIGSEGV:
             printf("Segfault: %d\n", siginfo.si_code);
             break;
+        case SIGCHLD:
+            printf("Exiting\n");
+            break;
         default:
             printf("Got signal: %s\n", strsignal(siginfo.si_signo));
             break;
     }
 
+    return true;
 }
 
 void step_over_breakpoint(dbg_ctx *ctx) {
@@ -205,14 +226,14 @@ void single_step(dbg_ctx *ctx) {
     }
 }
 
-void continue_execution(dbg_ctx *ctx) {
+bool continue_execution(dbg_ctx *ctx) {
     step_over_breakpoint(ctx);
     if (ptrace(PTRACE_CONT, ctx->pid, NULL, NULL) < 0)
     {
-        perror("Error: ");
-        exit(EXIT_FAILURE);
+        return false;
     }
-    wait_for_signal(ctx);
+
+    return wait_for_signal(ctx);
 }
 
 
