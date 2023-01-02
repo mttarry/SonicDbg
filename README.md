@@ -2,7 +2,7 @@
 
 ## Overview
 
-SonicDbg is a hobby debugger for aarch64 architecture. It supports both position independent and non position independent executables, as well as the following features:
+SonicDbg is a hobby debugger for the AArch64 architecture. It supports both position-independent and non-position-independent executables, as well as the following features:
 
 - Setting breakpoints at function symbols / addresses
 - Reading/Writing to memory at address
@@ -12,34 +12,34 @@ SonicDbg is a hobby debugger for aarch64 architecture. It supports both position
 ### Commands
 
 #### Breakpoints
-To set a breakpoint at a function symbol:
+To set a breakpoint at a function symbol:  
 `<sonicdbg> b main`
 
-To set a breakpoint at an address:
+To set a breakpoint at an address:  
 `<sonicdbg> b *0xAAAAFF30`
 
 #### Register Read/Write
-To write a register:
+To write a register:  
 `<sonicdbg> reg write pc`
 
 To read from a register:
 `<sonicdbg> reg read pc`
 
 #### Memory Read/Write
-To read from a memory address:
+To read from a memory address:  
 `<sonicdbg> mem read 0xAAAAFF30`
 
-To write to a memory address:
+To write to a memory address:  
 `<sonicdbg> mem write 0xAAAAFF30`
 
 #### Single Step
-To step over a single instruction:
+To step over a single instruction:  
 `<sonicdbg> si`
 
 #### Continue
-To continue execution:
+To continue execution:  
 `<sonicdbg> continue`
 
 
 ### Notes
-SonicDbg has not been thoroughly tested. It has only been tested on Aarch64 targets--further development is needed to support x86.
+SonicDbg has not been thoroughly tested. It has only been tested on AArch64 targets--further development is needed to support x86.
