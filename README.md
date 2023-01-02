@@ -9,6 +9,10 @@ SonicDbg is a hobby debugger for the AArch64 architecture. It supports both posi
 - Reading/Writing to registers
 - Continuing execution
 
+### Dependencies
+SonicDbg relies on libdwarf to parse the debug information from binaries compiled with the -g flag. SonicDbg also relies on libelf to determine if a binary is position-independent.
+
+
 ### Commands
 
 #### Breakpoints
