@@ -22,7 +22,7 @@ To set a breakpoint at an address:
 To write a register:  
 `<sonicdbg> reg write pc`
 
-To read from a register:
+To read from a register:  
 `<sonicdbg> reg read pc`
 
 #### Memory Read/Write
