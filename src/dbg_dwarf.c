@@ -253,11 +253,45 @@ static Dwarf_Line get_pc_line(Dwarf_Die cu_die, uint64_t pc) {
     Dwarf_Signed linecount = 0;
     Dwarf_Addr lineaddr = 0;
 
+    Dwarf_Addr min_addr = 0;
+    Dwarf_Line min_line = 0;
+
     if (dwarf_srclines_b(cu_die, &version_out, &is_single_table, &context_out, &err) == DW_DLV_OK) {
         if (dwarf_srclines_from_linecontext(context_out, &linebuf, &linecount, &err) == DW_DLV_OK) {
             for (int i = 0; i < linecount; ++i) {
                 if (dwarf_lineaddr(linebuf[i], &lineaddr, &err) == DW_DLV_OK) {
                     if (pc == lineaddr) return linebuf[i];
+                    else if (pc > lineaddr && pc > min_addr) {
+                        min_line = linebuf[i];
+                        min_addr = lineaddr;
+                    }
+                } 
+            }
+        }
+    }
+
+    return min_line;
+}
+
+
+static Dwarf_Line get_prologue_end_line(Dwarf_Die cu_die, uint64_t prologue_addr) {
+    Dwarf_Unsigned version_out = 0;
+    Dwarf_Small is_single_table = 0;
+    Dwarf_Line_Context context_out = 0;
+    Dwarf_Error err = 0;
+    Dwarf_Line *linebuf = 0;
+    Dwarf_Signed linecount = 0;
+    Dwarf_Addr lineaddr = 0;
+
+    if (dwarf_srclines_b(cu_die, &version_out, &is_single_table, &context_out, &err) == DW_DLV_OK) {
+        if (dwarf_srclines_from_linecontext(context_out, &linebuf, &linecount, &err) == DW_DLV_OK) {
+            for (int i = 0; i < linecount; ++i) {
+                if (dwarf_lineaddr(linebuf[i], &lineaddr, &err) == DW_DLV_OK) {
+                    if (prologue_addr == lineaddr) {
+                        // Second line entry after function prologue
+                        // Note: some compilers might not output PE for line entry
+                        return linebuf[i + 1];
+                    }
                 } 
             }
         }
@@ -272,11 +306,12 @@ struct src_info get_src_info(dbg_ctx *ctx, uint64_t pc) {
     Dwarf_Error err = 0;
     char *srcfile, *ret_str;
     char **src_files; 
+    Dwarf_Line pc_line = 0;
 
     struct src_info src_info = {};
-
+    
     Dwarf_Die cu_die = get_cu_die_by_pc(ctx, pc);
-    Dwarf_Line pc_line = get_pc_line(cu_die, pc);
+    pc_line = get_pc_line(cu_die, pc);
 
     if (cu_die == NULL) {
         printf("Error: Couldn't find CU DIE corresponding to PC\n");
@@ -322,7 +357,7 @@ void print_source(struct src_info *src_info) {
     }
 
     char line[256];
-    Dwarf_Unsigned count = 0;
+    Dwarf_Unsigned count = 1;
     while (fgets(line, sizeof(line), f) != NULL) {
         if (count == src_info->line_no) {
             printf("%llu\t%s", src_info->line_no, line);
@@ -366,4 +401,12 @@ Dwarf_Addr get_func_addr(dbg_ctx *ctx, const char *symbol) {
     }
 
     return 0;
+}
+
+Dwarf_Line get_func_prologue_end_line(dbg_ctx *ctx, const char *symbol) {
+    Dwarf_Addr prologue_addr = get_func_addr(ctx, symbol);
+    Dwarf_Die cu_die = get_cu_die_by_pc(ctx, prologue_addr);
+    Dwarf_Line prologue_end_line = get_prologue_end_line(cu_die, prologue_addr);
+    
+    return prologue_end_line;
 }

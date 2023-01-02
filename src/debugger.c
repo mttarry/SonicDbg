@@ -26,21 +26,29 @@ void free_debugger(dbg_ctx *ctx) {
     close_elf(ctx);
 }
 
+void hit_bp_message(int bp_no, intptr_t addr, const char *func, Dwarf_Unsigned line_no, char *file) {
+    printf("Breakpoint %d, " BLU "0x%lx " RESET "in " YEL "%s ()" RESET  " at line %llu of " GRN "%s\n" RESET, bp_no, addr, func, line_no, file);
+}
+
+void bp_info(dbg_ctx *ctx) {
+    breakpoint_t *bp = at_breakpoint(ctx);
+    uint64_t pc = get_pc(ctx->pid);
+
+    if (bin_is_pie(ctx->elf))
+        pc -= ctx->load_addr;
+
+    char *func = get_func_symbol_from_pc(ctx, pc);
+    struct src_info src_info = get_src_info(ctx, pc);
+    hit_bp_message(bp->num, bp->addr, func, src_info.line_no, loc_last_dir(src_info.src_file_name));
+    print_source(&src_info);
+    free(src_info.src_file_name);
+}
+
 static void handle_sigtrap(dbg_ctx *ctx, siginfo_t info) {
     switch (info.si_code) {
         case TRAP_BRKPT:
         {
-            breakpoint_t *bp = at_breakpoint(ctx);
-            uint64_t pc = get_pc(ctx->pid);
-
-            if (bin_is_pie(ctx->elf))
-                pc -= ctx->load_addr;
-
-            char *func = get_func_symbol_from_pc(ctx, pc);
-            struct src_info src_info = get_src_info(ctx, pc);
-            printf("Breakpoint %d, " BLU "0x%lx " RESET "in %s at line %llu of " GRN "%s\n" RESET, bp->num, bp->addr, func, src_info.line_no, loc_last_dir(src_info.src_file_name));
-            print_source(&src_info);
-            free(src_info.src_file_name);
+            bp_info(ctx);
             return;
         }
         case SI_USER:
@@ -80,9 +88,6 @@ void list_breakpoints(const dbg_ctx *ctx) {
 void set_bp_at_addr(dbg_ctx *ctx, uint64_t addr) {
     // Set breakpoint if limit has not been exceeded
     if (ctx->active_breakpoints < MAX_BREAKPOINTS) {
-        if (bin_is_pie(ctx->elf)) {
-            addr += ctx->load_addr;
-        }
         breakpoint_t *new_bp = new_breakpoint(ctx->pid, ctx->active_breakpoints + 1, addr);
         enable_breakpoint(new_bp);
         ctx->breakpoints[ctx->active_breakpoints++] = new_bp;
@@ -94,13 +99,24 @@ void set_bp_at_addr(dbg_ctx *ctx, uint64_t addr) {
 }
 
 void set_bp_at_func(dbg_ctx *ctx, const char *symbol) {
-    Dwarf_Addr addr = get_func_addr(ctx, symbol);
-    if (addr != 0) {
-        set_bp_at_addr(ctx, addr);
+    Dwarf_Addr end_prologue_addr = 0;
+
+    Dwarf_Line prologue_end_line = get_func_prologue_end_line(ctx, symbol);
+
+    if (dwarf_lineaddr(prologue_end_line, &end_prologue_addr, NULL) != DW_DLV_OK) {
+        printf("Error in dwarf_lineaddr\n");
+        exit(EXIT_FAILURE);
     }
-    else {
+
+    if (bin_is_pie(ctx->elf))
+        end_prologue_addr += ctx->load_addr;
+
+    if (end_prologue_addr != 0) 
+        set_bp_at_addr(ctx, end_prologue_addr);
+    
+    else 
         printf("Unable to set breakpoint at function %s\n", symbol);
-    }
+    
 }
 
 breakpoint_t *get_bp_at_address(dbg_ctx *ctx, uint64_t addr) {
@@ -197,20 +213,6 @@ void continue_execution(dbg_ctx *ctx) {
         exit(EXIT_FAILURE);
     }
     wait_for_signal(ctx);
-
-    // breakpoint_t *bp = at_breakpoint(ctx);
-    // if (bp) {
-    //     uint64_t pc = get_pc(ctx->pid);
-
-    //     if (bin_is_pie(ctx->elf))
-    //         pc -= ctx->load_addr;
-
-    //     char *func = get_func_symbol_from_pc(ctx, pc);
-    //     struct src_info src_info = get_src_info(ctx, pc);
-    //     printf("Hit: Breakpoint %d at 0x%lx in %s at line %llu of %s\n", bp->num, bp->addr, func, src_info.line_no, loc_last_dir(src_info.src_file_name));
-    //     print_source(&src_info);
-    //     free(src_info.src_file_name);
-    // }
 }
 
 

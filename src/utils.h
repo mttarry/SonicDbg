@@ -10,6 +10,7 @@
 
 #define GRN   "\x1B[32m"
 #define BLU   "\x1B[34m"
+#define YEL   "\x1B[33m"
 #define RESET "\x1B[0m"
 
 void trim_ends(char **s);
