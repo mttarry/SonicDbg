@@ -30,12 +30,21 @@ void hit_bp_message(int bp_no, intptr_t addr, const char *func, Dwarf_Unsigned l
     printf("Breakpoint %d, " BLU "0x%lx " RESET "in " YEL "%s ()" RESET  " at line %llu of " GRN "%s\n" RESET, bp_no, addr, func, line_no, file);
 }
 
+uint64_t sub_load_addr(dbg_ctx *ctx, uint64_t addr) {
+    if (bin_is_pie(ctx->elf))
+        return addr - ctx->load_addr;
+    return addr;
+}
+
+uint64_t add_load_addr(dbg_ctx *ctx, uint64_t addr) {
+    if (bin_is_pie(ctx->elf))
+        return addr + ctx->load_addr;
+    return addr;
+}
+
 void bp_info(dbg_ctx *ctx) {
     breakpoint_t *bp = at_breakpoint(ctx);
-    uint64_t pc = get_pc(ctx->pid);
-
-    if (bin_is_pie(ctx->elf))
-        pc -= ctx->load_addr;
+    uint64_t pc = sub_load_addr(ctx, get_pc(ctx->pid));
 
     char *func = get_func_symbol_from_pc(ctx, pc);
     struct src_info src_info = get_src_info(ctx, pc);
@@ -108,8 +117,7 @@ void set_bp_at_func(dbg_ctx *ctx, const char *symbol) {
         exit(EXIT_FAILURE);
     }
 
-    if (bin_is_pie(ctx->elf))
-        end_prologue_addr += ctx->load_addr;
+    end_prologue_addr = add_load_addr(ctx, end_prologue_addr);
 
     if (end_prologue_addr != 0) 
         set_bp_at_addr(ctx, end_prologue_addr);
@@ -219,6 +227,11 @@ void single_step(dbg_ctx *ctx) {
     if (bp && bp->enabled) {
         step_over_breakpoint(ctx);
     }
+
+    uint64_t pc = sub_load_addr(ctx, get_pc(ctx->pid));
+
+    struct src_info src_info = get_src_info(ctx, pc);
+    print_source(&src_info);
 
     if (ptrace(PTRACE_SINGLESTEP, ctx->pid, NULL, NULL) < 0) {
         perror("Error: ");
